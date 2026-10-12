@@ -25,8 +25,29 @@ export function Quorum({ inv, reveal = 99, showRules = true }: { inv: Invoice; r
                     <>
                       <p className="text-[14px]">{a.note}</p>
                       <p className="mt-1 font-mono text-[11px] text-cement">
-                        agent #{a.agentId} · conf {a.confidence.toFixed(2)} · {a.cid}
+                        agent #{a.agentId} · conf {a.confidence.toFixed(2)} · evidence {a.cid}
                       </p>
+                      {inv.checks?.[role] && (
+                        <details className="group mt-1.5">
+                          <summary className="cursor-pointer list-none font-mono text-[11px] text-violet hover:underline">
+                            <span className="group-open:hidden">Show {inv.checks[role]!.length} checks</span>
+                            <span className="hidden group-open:inline">Hide checks</span>
+                          </summary>
+                          <ul className="mt-2 space-y-1 border-l border-ink/15 pl-3">
+                            {inv.checks[role]!.map((c, k) => (
+                              <li key={k} className="text-[12px] leading-snug">
+                                <span className={`mr-1.5 font-mono text-[10px] uppercase ${c.status === 'fail' ? 'text-[#8e2e2a]' : c.status === 'warn' ? 'text-[#7a5a14]' : c.status === 'pass' ? 'text-[#2c6b57]' : 'text-cement'}`}>{c.status}</span>
+                                {c.detail}
+                              </li>
+                            ))}
+                            <li className="font-mono text-[10px] text-cement">
+                              {inv.llm?.[role]
+                                ? `model: ${inv.llm[role]!.model}${inv.llm[role]!.error ? ` (failed: ${inv.llm[role]!.error})` : ''}`
+                                : 'no model used: deterministic checks only'}
+                            </li>
+                          </ul>
+                        </details>
+                      )}
                     </>
                   ) : (
                     <p className="text-[14px] text-ink/40">{a ? '—' : 'Waiting for this agent to sign.'}</p>
@@ -42,8 +63,11 @@ export function Quorum({ inv, reveal = 99, showRules = true }: { inv: Invoice; r
         <Card className="lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="h2">Policy contract</h2>
-            <span className="eyebrow">Arc · 8 rules</span>
+            <span className="eyebrow">Preview · 8 rules</span>
           </div>
+          <p className="-mt-2 mb-4 text-[12px] text-ink/55">
+            Predicted from the agents' output. The contract on Arc is the real gate and is not connected yet.
+          </p>
           <ul className="space-y-3">
             {RULES.map((r, i) => {
               const state: RuleState = reveal >= 6 ? rules[i] : 'wait';

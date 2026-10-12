@@ -17,7 +17,7 @@ export default function Agents() {
       <PageHeader
         eyebrow="Agents, reputation and bonds"
         title="Eight agents, one job each. Only one can spend."
-        sub="Scores come only from the Auditor’s outcomes, per role, on a rolling window. Each agent posts a USDC bond that is slashed for a proven bad approval."
+        sub="Scores come only from the Auditor’s outcomes, per role, on a rolling window, and each agent posts a USDC bond that is slashed for a proven bad approval. The scores and bonds below are mock: the Auditor is not built yet, so nothing moves them."
       />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

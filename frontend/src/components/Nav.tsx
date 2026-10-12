@@ -48,7 +48,7 @@ export function Nav() {
 
         <div className="flex items-center gap-3">
           <span className="hidden items-center gap-1.5 border border-citrine/60 bg-sand/30 px-2 py-1 font-mono text-[11px] uppercase tracking-[0.08em] sm:inline-flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-gold" /> Mock data
+            <span className="h-1.5 w-1.5 rounded-full bg-gold" /> Live agents, demo ledger
           </span>
           <Link href="/demo" className="btn-solid">Run the demo</Link>
         </div>

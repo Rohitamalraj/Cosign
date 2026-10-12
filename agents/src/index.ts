@@ -10,13 +10,14 @@ export * from './eip712';
 export { ledgerFromJson, recordPaid, type Ledger } from './ledger';
 export { fmtMicro, parseMicro } from './money';
 
-export const DATA_DIR = join(__dirname, '..', 'data');
+/** Bundlers (Next.js) rewrite __dirname, so a host app can point at the data folder with COSIGN_AGENTS_DATA. */
+export const dataDir = (): string => process.env.COSIGN_AGENTS_DATA ?? join(__dirname, '..', 'data');
 
 export function loadDemoLedger(): Ledger {
-  return ledgerFromJson(JSON.parse(readFileSync(join(DATA_DIR, 'ledger.json'), 'utf8')));
+  return ledgerFromJson(JSON.parse(readFileSync(join(dataDir(), 'ledger.json'), 'utf8')));
 }
 
-export const readDemoInvoice = (name: string): string => readFileSync(join(DATA_DIR, 'invoices', name), 'utf8');
+export const readDemoInvoice = (name: string): string => readFileSync(join(dataDir(), 'invoices', name), 'utf8');
 
 export const DEMO_CASES = [
   { id: 'A', file: 'case-a-clean.txt', title: 'Clean invoice' },

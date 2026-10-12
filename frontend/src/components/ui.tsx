@@ -30,6 +30,7 @@ export function VerdictPill({ v }: { v: Verdict }) {
 
 const statusStyle: Record<Status, { cls: string; label: string }> = {
   released: { cls: 'border-jade/70 bg-jade/15 text-[#2c6b57]', label: 'Released' },
+  ready: { cls: 'border-violet/50 bg-violet/10 text-minsk', label: 'Ready' },
   held: { cls: 'border-[#b4443f]/60 bg-[#b4443f]/10 text-[#8e2e2a]', label: 'Held' },
   escalated: { cls: 'border-citrine/70 bg-sand/40 text-[#7a5a14]', label: 'Needs human' },
   pending: { cls: 'border-lilac bg-lilac/25 text-minsk', label: 'In review' },
@@ -38,6 +39,11 @@ const statusStyle: Record<Status, { cls: string; label: string }> = {
 export function StatusPill({ s }: { s: Status }) {
   const { cls, label } = statusStyle[s];
   return <span className={`inline-block border px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.06em] ${cls}`}>{label}</span>;
+}
+
+/** Marks a payment that exists only in the demo ledger: no transaction was sent to any chain. */
+export function SimTag() {
+  return <span className="ml-1.5 border border-citrine/60 bg-sand/30 px-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[#7a5a14]">simulated</span>;
 }
 
 export function RuleDot({ s }: { s: RuleState }) {

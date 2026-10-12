@@ -23,6 +23,10 @@ export default function Overview() {
   const released = invoices.filter((i) => i.status === 'released');
   const inbox = invoices.filter((i) => i.status === 'escalated' || i.status === 'held').length;
   const maxDpo = Math.max(...traction.dpo.map((d) => d.before));
+  const paidVolume = released.reduce((s, i) => s + i.amount, 0);
+  const attacks = invoices.filter((i) => i.caseId && i.caseId !== 'A');
+  const stopped = attacks.filter((i) => i.status === 'held' || i.status === 'escalated').length;
+  const duplicatesCaught = invoices.filter((i) => i.attestations.some((a) => a.role === 'SENTINEL' && a.verdict === 'FAIL' && /duplicate/i.test(a.note))).length;
 
   return (
     <div className="space-y-4">
@@ -68,15 +72,15 @@ export default function Overview() {
 
       {/* Traction bento */}
       <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-12">
-        <Card className="lg:col-span-3"><Stat label="Businesses onboarded" value={String(traction.businesses)} sub="Design partners running real invoices" /></Card>
-        <Card className="lg:col-span-3"><Stat label="Invoices processed" value={String(traction.invoices)} sub="Through the full quorum path" /></Card>
-        <Card className="lg:col-span-3"><Stat label="USDC volume" value={usd(traction.volume)} sub="Test USDC on Arc testnet" accent /></Card>
-        <Card className="lg:col-span-3"><Stat label="Fraud suite blocked" value={`${traction.fraudBlocked.done}/${traction.fraudBlocked.total}`} sub="Duplicate, wallet swap, injection, over-limit" /></Card>
+        <Card className="lg:col-span-3"><Stat label="Businesses onboarded" value={String(traction.businesses)} sub="Mock number: no real users yet" /></Card>
+        <Card className="lg:col-span-3"><Stat label="Invoices processed" value={String(invoices.length)} sub="Live: read and signed by the real agents" /></Card>
+        <Card className="lg:col-span-3"><Stat label="USDC recorded as paid" value={usd(paidVolume)} sub="Simulated: demo ledger, no chain yet" accent /></Card>
+        <Card className="lg:col-span-3"><Stat label="Attack cases stopped" value={`${stopped}/${attacks.length}`} sub="Live: near-duplicate, wallet swap, injection, over-limit" /></Card>
 
         <Card className="md:col-span-2 lg:col-span-7">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="h2">Days payable outstanding, before vs after</h2>
-            <span className="eyebrow">Per design partner</span>
+            <span className="eyebrow">Mock figures</span>
           </div>
           <div className="space-y-4">
             {traction.dpo.map((d) => (
@@ -99,15 +103,15 @@ export default function Overview() {
         <Card className="md:col-span-2 lg:col-span-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="h2">Bounded autonomy</h2>
-            <span className="eyebrow">Last 30 days</span>
+            <span className="eyebrow">Mock figures</span>
           </div>
           <dl className="divide-y divide-ink/10">
             {[
               ['Escalated to a human', `${traction.escalatedShare}%`],
               ['Human agreed with the agents', `${traction.humanAgreed}%`],
               ['Receipts fully replayable', `${traction.receiptsReplayable}%`],
-              ['Duplicates caught', String(traction.duplicatesCaught)],
-              ['Released payments', String(released.length)],
+              ['Duplicates caught (live)', String(duplicatesCaught)],
+              ['Released payments (simulated)', String(released.length)],
             ].map(([k, v]) => (
               <div key={k} className="flex items-baseline justify-between py-3">
                 <dt className="text-ink/70">{k}</dt>
@@ -156,7 +160,7 @@ export default function Overview() {
       {/* Recent catches */}
       <Card>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="h2">Recent Auditor outcomes</h2>
+          <h2 className="h2">Recent Auditor outcomes (mock: the Auditor is not built yet)</h2>
           <Link href="/agents" className="border-b border-ink/40 pb-0.5 text-[13px]">All reputation events →</Link>
         </div>
         <ul className="divide-y divide-ink/10">

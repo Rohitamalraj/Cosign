@@ -1,11 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Quorum } from '@/components/Quorum';
-import { Card, PageHeader, StatusPill, usd } from '@/components/ui';
-import { invoices } from '@/lib/data';
-
-const cases = invoices.filter((i) => i.caseId).sort((a, b) => a.caseId!.localeCompare(b.caseId!));
+import { Card, PageHeader, SimTag, StatusPill, usd } from '@/components/ui';
+import { useStore } from '@/lib/store';
 
 const proves: Record<string, string> = {
   A: 'Normal path works end to end.',
@@ -18,11 +16,19 @@ const proves: Record<string, string> = {
 const stepLabels = ['Invoice in', 'Reader', 'Verifier', 'Matcher', 'Sentinel', 'Treasurer', 'Contract', 'Outcome'];
 
 export default function Demo() {
-  const [caseId, setCaseId] = useState<string>(cases[0].caseId!);
+  const { invoices, loading } = useStore();
+  // One row per case, from the live agent results (the most recent run of that sample wins).
+  const cases = useMemo(() => {
+    const seen = new Map<string, (typeof invoices)[number]>();
+    for (const i of invoices) if (i.caseId && !seen.has(i.caseId)) seen.set(i.caseId, i);
+    return [...seen.values()].sort((a, b) => a.caseId!.localeCompare(b.caseId!));
+  }, [invoices]);
+
+  const [caseId, setCaseId] = useState<string>('A');
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
 
-  const inv = cases.find((c) => c.caseId === caseId)!;
+  const inv = cases.find((c) => c.caseId === caseId) ?? cases[0];
   const last = stepLabels.length - 1;
 
   useEffect(() => {
@@ -37,17 +43,26 @@ export default function Demo() {
   const reveal = Math.min(step, 6);
   const done = step >= last;
 
+  if (!inv) {
+    return (
+      <>
+        <PageHeader eyebrow="Five scripted cases" title="Watch the contract hold on every attack." />
+        <Card><p className="text-ink/60">{loading ? 'The agents are reading the five demo invoices…' : 'No demo cases found. Use "Reset demo" in the invoice inbox.'}</p></Card>
+      </>
+    );
+  }
+
   const outcome =
-    inv.status === 'released' ? 'Contract releases. USDC settles on Arc and a receipt is written.'
-    : inv.status === 'escalated' ? 'Contract holds. A human signature above the limit is required.'
-    : 'Contract holds the payment and routes it to a human. Nothing moves.';
+    inv.decision === 'READY' ? 'All five agents signed PASS, so the contract would release the payment and a receipt would be written.'
+    : inv.decision === 'NEEDS_HUMAN' ? 'All agents passed, but the contract holds: the amount is above the limit and needs a human signature.'
+    : 'The contract would hold the payment and route it to a human. Nothing moves.';
 
   return (
     <>
       <PageHeader
         eyebrow="Five scripted cases"
         title="Watch the contract hold on every attack."
-        sub="Replay the same pipeline the judges see. Each case steps through the five attestations, then the eight contract rules."
+        sub="These are the real agents' verdicts on five scripted invoices, replayed step by step: the five attestations, then what the eight contract rules would do."
       />
 
       <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
@@ -102,7 +117,7 @@ export default function Demo() {
         <Card className="mt-4 !border-violet bg-violet/5">
           <div className="flex flex-wrap items-center gap-3">
             <p className="eyebrow">Outcome</p>
-            <StatusPill s={inv.status} />
+            <StatusPill s={inv.status} />{inv.simulated && <SimTag />}
           </div>
           <p className="mt-2 text-[16px]">{outcome}</p>
           {caseId === 'B' && (
@@ -110,7 +125,7 @@ export default function Demo() {
               Even if someone sends a direct second payment for INV-1041’s hash, rule 7 rejects it: the paid set already contains it.
             </p>
           )}
-          {caseId === 'A' && <p className="mt-2 font-mono text-[12px] text-cement">tx {inv.tx}</p>}
+          {caseId === 'A' && <p className="mt-2 font-mono text-[12px] text-cement">Recorded as paid in the demo ledger. No chain transaction exists yet.</p>}
         </Card>
       )}
     </>

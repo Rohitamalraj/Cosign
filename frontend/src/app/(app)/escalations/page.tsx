@@ -1,14 +1,25 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, PageHeader, StatusPill, VerdictPill, usd } from '@/components/ui';
+import { useState } from 'react';
+import { Card, PageHeader, SimTag, StatusPill, VerdictPill, usd } from '@/components/ui';
 import { evalRules } from '@/lib/data';
 import { useStore } from '@/lib/store';
 
 export default function Escalations() {
   const { invoices, humanDecide } = useStore();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
   const queue = invoices.filter((i) => i.status === 'escalated' || i.status === 'held');
   const cleared = invoices.filter((i) => i.humanSig);
+
+  async function decide(uid: string, approve: boolean) {
+    setBusy(uid);
+    setErr(null);
+    try { await humanDecide(uid, approve); }
+    catch (e) { setErr(e instanceof Error ? e.message : 'could not record the decision'); }
+    finally { setBusy(null); }
+  }
 
   return (
     <>
@@ -18,17 +29,19 @@ export default function Escalations() {
         sub="Any FAIL or ESCALATE verdict holds the payment. A human approval only counts for the limit rule: every other rule must still pass before the contract releases funds."
       />
 
+      {err && <p role="alert" className="mb-4 border border-[#b4443f]/60 bg-[#b4443f]/10 p-3 text-[#8e2e2a]">{err}</p>}
+
       <div className="space-y-4">
         {queue.length === 0 && (
-          <Card><p className="text-ink/60">Queue is empty. Every invoice is released or still being reviewed by the agents.</p></Card>
+          <Card><p className="text-ink/60">Queue is empty. Run an invoice in the <Link href="/invoices" className="underline">inbox</Link> to see the agents hold one.</p></Card>
         )}
 
         {queue.map((inv) => {
           const flagged = inv.attestations.filter((a) => a.verdict !== 'PASS');
           const rules = evalRules(inv);
-          const onlyLimit = rules.every((r, idx) => r === 'pass' || (idx === 5 && r === 'wait'));
+          const onlyLimit = inv.decision !== 'HOLD' && rules.every((r, idx) => r === 'pass' || (idx === 5 && r === 'wait'));
           return (
-            <Card key={inv.id}>
+            <Card key={inv.uid}>
               <div className="grid gap-6 lg:grid-cols-12">
                 <div className="lg:col-span-8">
                   <div className="flex flex-wrap items-center gap-3">
@@ -43,7 +56,7 @@ export default function Escalations() {
                     <ul className="mt-5 space-y-3">
                       {flagged.map((a) => (
                         <li key={a.role} className="border border-ink/15 bg-opal p-3">
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center gap-3">
                             <span className="font-mono text-[12px] font-medium">{a.role}</span>
                             <VerdictPill v={a.verdict} />
                             <span className="font-mono text-[11px] text-cement">evidence {a.cid}</span>
@@ -54,7 +67,7 @@ export default function Escalations() {
                     </ul>
                   ) : (
                     <p className="mt-5 border border-ink/15 bg-opal p-3">
-                      All five agents signed PASS. The contract is holding this payment only because it is above the 5,000 USDC limit.
+                      All five agents signed PASS. The contract would hold this payment only because it is above the 5,000 USDC limit.
                     </p>
                   )}
                   <Link href="/invoices" className="mt-4 inline-block border-b border-ink/40 pb-0.5 text-[13px]">Open full quorum in inbox →</Link>
@@ -65,15 +78,15 @@ export default function Escalations() {
                     <p className="eyebrow">Your decision</p>
                     <p className="mt-2 text-ink/70">
                       {onlyLimit
-                        ? 'Signing releases the payment and puts your signature on the receipt.'
-                        : 'Other rules are failing, so approving cannot release funds. Reject to keep it held, or wait for the cooling-off and challenge to clear.'}
+                        ? 'Signing records the payment in the demo ledger and puts your approval on the receipt. No money moves until the Executor is connected to Arc.'
+                        : 'Other rules are failing, so approving cannot release funds. Reject to keep it held, or fix the cause (for example finish the cooling-off and challenge) and run it again.'}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" className="btn-solid" disabled={!onlyLimit} onClick={() => humanDecide(inv.id, true)}>
+                    <button type="button" className="btn-solid" disabled={!onlyLimit || busy === inv.uid} onClick={() => void decide(inv.uid, true)}>
                       Sign and approve
                     </button>
-                    <button type="button" className="btn-ghost" onClick={() => humanDecide(inv.id, false)}>Reject</button>
+                    <button type="button" className="btn-ghost" disabled={busy === inv.uid} onClick={() => void decide(inv.uid, false)}>Reject</button>
                   </div>
                 </div>
               </div>
@@ -87,9 +100,9 @@ export default function Escalations() {
           <h2 className="h2 mb-3">Released with a human signature</h2>
           <ul className="divide-y divide-ink/10">
             {cleared.map((i) => (
-              <li key={i.id} className="flex flex-wrap items-baseline justify-between gap-2 py-3">
-                <span>{i.id} · {i.vendor} · {usd(i.amount)} USDC</span>
-                <span className="font-mono text-[12px] text-cement">signed {i.humanSig} · tx {i.tx}</span>
+              <li key={i.uid} className="flex flex-wrap items-baseline justify-between gap-2 py-3">
+                <span>{i.id} · {i.vendor} · {usd(i.amount)} USDC{i.simulated && <SimTag />}</span>
+                <span className="font-mono text-[12px] text-cement">{i.humanSig}</span>
               </li>
             ))}
           </ul>

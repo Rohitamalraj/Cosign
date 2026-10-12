@@ -6,7 +6,7 @@ Cosign splits the AP job into eight single-purpose agents. Each one signs what i
 
 Built for the **Tameion Agents Hackathon**, RFB 2 (AP/AR automation), with elements of RFB 3 (vendor and agent reputation) and RFB 4 (limits enforced in a contract, not a prompt).
 
-> **Status: work in progress.** The policy contract, the agent workers and the Executor are built and tested together on a local chain (157 tests). The frontend runs on **mock data** and is not yet wired to them. Nothing is deployed to Arc testnet yet, and there are no real users yet. See [What works today](#what-works-today).
+> **Status: work in progress.** The policy contract, the agent workers and the Executor are built and tested together on a local chain (157 tests). The frontend shows the real agents' verdicts, but payments in it are simulated and the traction and reputation figures are mock. Nothing is deployed to Arc testnet yet, and there are no real users yet. See [What works today](#what-works-today).
 
 ## Why
 
@@ -68,7 +68,10 @@ A read-only `evaluate()` returns the failing rule without spending anything, so 
 | Agent workers (Reader, Verifier, Matcher, Sentinel, Treasurer) | Done. Deterministic checks plus optional free LLMs. 54 tests |
 | Agents -> contract, end to end | Done. 10 tests push the agents' real signed output through the real contract |
 | Executor service (`release`, idempotency, crash recovery, receipts, HTTP API) | Done. 22 unit tests plus 22 chain tests against the real contract |
-| Frontend (landing, docs, pricing, dashboard, invoices, escalations, receipts, agents, demo) | Done, on **mock data**. Not yet wired to the agents or Executor |
+| Frontend: invoices, escalations, receipts, demo, dashboard | **Wired to the real agents** through server-side API routes. Payments are recorded in a demo ledger (simulated, no chain) |
+| Frontend: landing, docs, pricing | Static pages |
+| Frontend: agent scores and bonds, traction figures | Still **mock** (the Auditor does not exist yet and there are no real users) |
+| Frontend -> Executor -> Arc | Not wired. The Executor and receipt replay exist and are tested, but nothing is deployed to Arc |
 | PDF and OCR ingestion | Not built. Agents read plain-text invoices today |
 | Deployment to Arc testnet | Not done. Needs RPC details and a funded test wallet |
 | Auditor, reconciliation, real receipts | Not built |
@@ -157,6 +160,14 @@ npm run dev        # http://localhost:3000
 ```
 
 Routes: `/` landing, `/docs`, `/pricing`, `/dashboard`, `/invoices`, `/escalations`, `/receipts`, `/agents`, `/demo`.
+
+The app imports `agents/` and runs it in server-side API routes (`/api/invoices`, `/api/invoices/:uid/decision`, `/api/samples`, `/api/reset`), so you need to run `npm install` in `agents/` too. On first load it feeds the five demo invoices through the real agents and saves the demo ledger to `frontend/.data/`. Paste your own plain-text invoice in the inbox to run it live. Copy `frontend/.env.example` to `.env.local` to add free models.
+
+Things to know before deploying it anywhere public:
+
+- The API routes are unauthenticated, size-limited and rate-limited (20 requests a minute per IP). If you configure model API keys, anyone who can reach the app can spend them, so do not expose a keyed deployment without real authentication.
+- `NODE_ENV=production` refuses to start without `COSIGN_AGENT_MNEMONIC`; development uses a public test mnemonic.
+- "Released" in the UI means recorded in the demo ledger. The contract rules shown are a preview computed from the agents' output, not the deployed contract.
 
 ## The five demo cases
 
