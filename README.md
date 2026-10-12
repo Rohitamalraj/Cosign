@@ -6,7 +6,7 @@ Cosign splits the AP job into eight single-purpose agents. Each one signs what i
 
 Built for the **Tameion Agents Hackathon**, RFB 2 (AP/AR automation), with elements of RFB 3 (vendor and agent reputation) and RFB 4 (limits enforced in a contract, not a prompt).
 
-> **Status: work in progress.** The policy contract and its tests are done and pass locally. The frontend runs on **mock data**. The agent workers, the Executor service and the Arc testnet deployment are not built yet. See [What works today](#what-works-today).
+> **Status: work in progress.** The policy contract, the agent workers and the Executor are built and tested together on a local chain (157 tests). The frontend runs on **mock data** and is not yet wired to them. Nothing is deployed to Arc testnet yet, and there are no real users yet. See [What works today](#what-works-today).
 
 ## Why
 
@@ -67,9 +67,9 @@ A read-only `evaluate()` returns the failing rule without spending anything, so 
 | Policy contract, registry, mock USDC | Done. 49 Hardhat tests pass on a local chain |
 | Agent workers (Reader, Verifier, Matcher, Sentinel, Treasurer) | Done. Deterministic checks plus optional free LLMs. 54 tests |
 | Agents -> contract, end to end | Done. 10 tests push the agents' real signed output through the real contract |
-| Frontend (landing, docs, pricing, dashboard, invoices, escalations, receipts, agents, demo) | Done, on **mock data**. Not yet wired to the agents |
+| Executor service (`release`, idempotency, crash recovery, receipts, HTTP API) | Done. 22 unit tests plus 22 chain tests against the real contract |
+| Frontend (landing, docs, pricing, dashboard, invoices, escalations, receipts, agents, demo) | Done, on **mock data**. Not yet wired to the agents or Executor |
 | PDF and OCR ingestion | Not built. Agents read plain-text invoices today |
-| Executor service calling `release` | Not built |
 | Deployment to Arc testnet | Not done. Needs RPC details and a funded test wallet |
 | Auditor, reconciliation, real receipts | Not built |
 | Real users and traction | None yet. Nothing on the site is real usage |
@@ -81,6 +81,7 @@ Every number on the frontend (volume, invoices processed, days payable, scores) 
 ```
 contracts/   Solidity (Hardhat): CosignPolicy, AgentRegistry, MockUSDC, tests
 agents/      TypeScript agent workers: parse, check, sign EIP-712 attestations; demo ledger and invoices
+executor/    The only component that spends: submits releases idempotently, writes replayable receipts, HTTP API
 frontend/    Next.js 14 + Tailwind + Framer Motion, mock data in src/lib/data.ts
 Cosign — Product Requirements Document.md / .pdf
 ```
@@ -107,6 +108,32 @@ npm run demo        # runs the five cases through all five agents and prints eac
 ```
 
 To run the whole chain, agents then contract: `cd contracts && npx hardhat test test/agents-e2e.test.js`.
+
+**Executor**
+
+```bash
+cd executor
+npm install
+npm test            # 22 unit tests (validation, stores, HTTP auth)
+# The chain tests run in contracts/ because they need a local EVM:
+cd ../contracts && npx hardhat test test/executor.test.js
+```
+
+To run the service against a deployed contract (needs `RPC_URL`, `POLICY_ADDRESS`, a dedicated `EXECUTOR_PRIVATE_KEY` that holds gas only, and an `EXECUTOR_API_TOKEN` of 16+ characters):
+
+```bash
+cd executor && npm run serve     # listens on 127.0.0.1:8787
+# POST /release  GET /releases/:hash  GET /receipts/:hash  POST /reconcile/:hash  GET /healthz
+```
+
+What the Executor does and does not do:
+
+- It never reads an agent's opinion. It asks the contract (`evaluate`, a free view call) and sends only when the contract says it will release. The contract, not this service, is the gate.
+- It never pays an invoice twice. It writes `SENDING` to disk before touching the network, checks the contract's paid set, and serializes work per invoice. A crash, a retry, a second instance with an empty store, or a transaction stuck in the mempool cannot cause a second payment.
+- It refuses attestations that would expire within two minutes, measured against the chain's clock.
+- Every payment gets a receipt (attestations, signatures, policy version, transaction, the contract's receipt hash). `replayReceipt()` re-verifies it from scratch with no Cosign service, and fails on any tampering.
+- Over-limit payments need a human: the approver signs a typed message (`humanApprovalTypedData`) and the Executor passes it through.
+- The HTTP API is bearer-token protected, loopback by default, size-limited and strictly validated. Put TLS and a real gateway in front before exposing it.
 
 **Optional: add free language models.** Without a model, every agent runs deterministic checks and the Matcher and Sentinel cap their confidence at 0.85. A model adds a second opinion. It can only add doubt (PASS to ESCALATE or FAIL), never remove it, and any model error becomes ESCALATE, never PASS. Matcher and Sentinel must use different models, and startup fails if they match.
 
