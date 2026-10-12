@@ -1,0 +1,20 @@
+{
+  "name": "cosign-agents",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Cosign agent workers: Reader, Verifier, Matcher, Sentinel, Treasurer. Each signs an EIP-712 attestation.",
+  "scripts": {
+    "test": "node --import tsx --test test/*.test.ts",
+    "demo": "tsx scripts/demo.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ethers": "^6.13.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "tsx": "^4.19.2",
+    "typescript": "^5.5.3"
+  }
+}
