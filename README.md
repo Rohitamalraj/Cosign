@@ -6,7 +6,7 @@ Cosign splits the AP job into eight single-purpose agents. Each one signs what i
 
 Built for the **Tameion Agents Hackathon**, RFB 2 (AP/AR automation), with elements of RFB 3 (vendor and agent reputation) and RFB 4 (limits enforced in a contract, not a prompt).
 
-> **Status: work in progress.** The contracts are **deployed on Arc testnet**. The five demo cases ran on-chain end to end (agents signing and the Executor sending through **Circle Wallets**), and the Auditor has moved reputation and slashed a bond on-chain. 159 tests pass. **There are no real users yet**, and the invoice inbox in the web app pays from a simulated demo ledger. See [What works today](#what-works-today).
+> **Status: work in progress.** The contracts are **deployed on Arc testnet**. The five demo cases ran on-chain end to end (agents signing and the Executor sending through **Circle Wallets**), and the Auditor has moved reputation and slashed a bond on-chain. 177 tests pass. **There are no real users yet**, and the invoice inbox in the web app pays from a simulated demo ledger. See [What works today](#what-works-today).
 
 ## For judges: verify it in 60 seconds
 
@@ -23,7 +23,7 @@ You do not need to trust this README. Everything about the Arc run is re-checked
 | Contracts on Arc testnet, real USDC token, gas in USDC | **Test money only, at 1/1000 scale** (faucet limit) |
 | Agents sign through Circle-held keys; contract verifies with `ecrecover` | The five invoices are **scripted** by us, including the attacks |
 | Held cases moved nothing; paid cases are in the paid set | The Auditor's ground truth is scripted; the slash is a **seeded** stand-in |
-| 159 automated tests, incl. agents -> contract end to end | **No real users yet** (see `docs/TRACTION.md`) |
+| 177 automated tests, incl. agents -> contract end to end | **No real users yet** (see `docs/TRACTION.md`) |
 | Replayable receipts | The web inbox pays from a **simulated** demo ledger |
 
 ## Why
@@ -90,7 +90,7 @@ A read-only `evaluate()` returns the failing rule without spending anything, so 
 | Frontend: landing, docs, pricing | Static pages |
 | Frontend: On-chain, Agents, dashboard | **Live from Arc testnet:** keyless re-verification, receipt replay, agent scores and bonds, Auditor events. Traction shows real partners only, which is zero today |
 | Executor + receipt replay | Done and used on Arc through a Circle wallet (the demo script). Not triggered from the web UI |
-| PDF and OCR ingestion | Not built. Agents read plain-text invoices today |
+| PDF input | **Text-based PDFs work** (upload in the inbox; 5 MB and 10 page caps, hardened pdf.js). **Scanned PDFs need OCR, which is not built** and are rejected with a clear message. Invoices in a layout the parser does not know are held for a human unless a free model is configured to propose the missing fields (see below) |
 | Deployment to Arc testnet | **Done.** Registry and policy deployed against the real USDC; five demo cases run on-chain at testnet scale |
 | Circle Wallets | **Used.** The five agents' signing keys and the Executor wallet are Circle developer-controlled wallets on ARC-TESTNET |
 | Web inbox "Release" -> Arc | Not wired, on purpose for now: an unauthenticated public page that can trigger payments would be unsafe. The on-chain run is a script (`executor/scripts/onchain-demo.ts`) |
@@ -195,6 +195,8 @@ What the Executor does and does not do:
 
 **Optional: add free language models.** Without a model, every agent runs deterministic checks and the Matcher and Sentinel cap their confidence at 0.85. A model adds a second opinion. It can only add doubt (PASS to ESCALATE or FAIL), never remove it, and any model error becomes ESCALATE, never PASS. Matcher and Sentinel must use different models, and startup fails if they match.
 
+The `READER_LLM` model has one extra job: when the parser cannot read an invoice's layout, it **proposes values for the missing fields**. The model is never the source of truth: a field the parser already found is never overridden, and every proposed wallet, amount, invoice number, vendor and email must appear **verbatim** in the document, and dates must be real and appear in it, otherwise the value is rejected and the invoice is held. If the document names several wallets (for example an injected one), the choice is flagged as ambiguous and held. This is tested with scripted model replies only; it has not been run against a live free model yet, because that needs your API key.
+
 ```bash
 # any OpenAI-compatible endpoint works; a few free options:
 export MATCHER_LLM=groq:llama-3.3-70b-versatile      # needs GROQ_API_KEY (free tier)
@@ -216,7 +218,7 @@ npm run dev        # http://localhost:3000
 
 Routes: `/` landing, `/docs`, `/pricing`, `/dashboard`, `/invoices`, `/escalations`, `/receipts`, `/agents`, `/demo`.
 
-The app imports `agents/` and runs it in server-side API routes (`/api/invoices`, `/api/invoices/:uid/decision`, `/api/samples`, `/api/reset`), so you need to run `npm install` in `agents/` too. On first load it feeds the five demo invoices through the real agents and saves the demo ledger to `frontend/.data/`. Paste your own plain-text invoice in the inbox to run it live. Copy `frontend/.env.example` to `.env.local` to add free models.
+The app imports `agents/` and runs it in server-side API routes (`/api/invoices`, `/api/invoices/:uid/decision`, `/api/samples`, `/api/reset`), so you need to run `npm install` in `agents/` too. On first load it feeds the five demo invoices through the real agents and saves the demo ledger to `frontend/.data/`. Paste an invoice or upload a text-based PDF in the inbox to run it live. Copy `frontend/.env.example` to `.env.local` to add free models.
 
 Things to know before deploying it anywhere public:
 

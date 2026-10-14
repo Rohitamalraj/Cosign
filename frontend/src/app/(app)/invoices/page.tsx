@@ -17,7 +17,7 @@ const filters: { key: Status | 'all'; label: string }[] = [
 interface Sample { id: string; title: string; text: string }
 
 export default function Invoices() {
-  const { invoices, loading, error, submit, reset, humanDecide } = useStore();
+  const { invoices, loading, error, submit, submitPdf, reset, humanDecide } = useStore();
   const [filter, setFilter] = useState<Status | 'all'>('all');
   const [selected, setSelected] = useState<string | null>(null);
   const [samples, setSamples] = useState<Sample[]>([]);
@@ -31,6 +31,20 @@ export default function Invoices() {
 
   const list = invoices.filter((i) => filter === 'all' || i.status === filter);
   const inv = invoices.find((i) => i.uid === selected) ?? invoices[0];
+
+  async function upload(file: File | undefined) {
+    if (!file) return;
+    setBusy(true);
+    setFormError(null);
+    try {
+      const out = await submitPdf(file);
+      setSelected(out.uid);
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : 'could not read that PDF');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function release(uid: string) {
     setBusy(true);
@@ -67,7 +81,10 @@ export default function Invoices() {
           <h2 className="h2">Run an invoice through the agents</h2>
           <button type="button" className="btn-ghost !px-3 !py-2 text-[13px]" onClick={() => void reset()} disabled={busy}>Reset demo</button>
         </div>
-        <p className="mt-1 text-[13px] text-ink/60">Plain-text invoices only for now (PDF and OCR are not built). Payments are recorded in a demo ledger; no money moves.</p>
+        <p className="mt-1 text-[13px] text-ink/60">
+          Paste invoice text or upload a text-based PDF (up to 5 MB, 10 pages). Scanned images are rejected because OCR is not built.
+          Layouts the parser does not know are held for a human unless a model is configured to read them. Payments here are recorded in a demo ledger; no money moves.
+        </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {samples.map((s) => (
             <button key={s.id} type="button" onClick={() => setText(s.text)} className="border border-ink/20 px-3 py-1.5 text-[13px] hover:border-ink">
@@ -88,6 +105,15 @@ export default function Invoices() {
           <button type="button" className="btn-solid" onClick={() => void run()} disabled={busy || text.trim().length < 20}>
             {busy ? 'Agents are working…' : 'Run the five agents'}
           </button>
+          <label className={`btn-ghost cursor-pointer ${busy ? 'pointer-events-none opacity-40' : ''}`}>
+            Upload a PDF
+            <input
+              type="file"
+              accept="application/pdf,.pdf"
+              className="sr-only"
+              onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ''; }}
+            />
+          </label>
           {formError && <p role="alert" className="text-[13px] text-[#8e2e2a]">{formError}</p>}
         </div>
       </Card>

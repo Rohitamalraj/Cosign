@@ -4,6 +4,7 @@ import {
   findVendorByDomain, findVendorByName, jaccard, lineSignature, normalizeName, tokenize,
   type Agreement, type Ledger, type Vendor,
 } from './ledger';
+import { gapFill, needsGapFill } from './extract';
 import { DATA_ONLY_RULE, parseJsonReply, untrusted, type LLM } from './llm';
 import { diffBps, fmtMicro, parseMicro } from './money';
 import { parseInvoice } from './parse';
@@ -74,8 +75,27 @@ const readerSchema = z.object({
 });
 
 export async function runReader(text: string, llm: LLM | null): Promise<{ parsed: ParsedInvoice; result: AgentResult }> {
-  const p = parseInvoice(text);
+  let p = parseInvoice(text);
   const checks: Check[] = [];
+  let trace: LlmTrace | undefined;
+  let modelFilled: string[] = [];
+
+  // Real invoices rarely match the template. A model may propose values for the gaps, but only values that appear
+  // verbatim in the document are accepted, and a field the parser already found is never overridden.
+  if (llm && needsGapFill(p)) {
+    const g = await gapFill(text, p, llm);
+    trace = g.trace;
+    if (g.error) checks.push(llmUnavailable(g.trace));
+    else {
+      p = g.parsed;
+      modelFilled = g.accepted;
+      if (g.accepted.length) checks.push(check('model_filled', 'info', `The parser could not read ${g.accepted.join(', ')}; ${llm.id} proposed them and each was verified against the document text.`));
+      for (const r of g.rejected) checks.push(check('model_rejected', 'warn', `${llm.id} proposed ${r.field}, rejected: ${r.reason}.`));
+      if (g.accepted.includes('payee') && p.bodyAddresses.length > 1) {
+        checks.push(check('ambiguous_destination', 'warn', `The document contains ${p.bodyAddresses.length} wallet addresses and a model chose the payee. A human should confirm which is right.`));
+      }
+    }
+  }
 
   const missing = [
     !p.invoiceNumber && 'invoice number', !p.vendorName && 'vendor', !p.issued && 'issue date', !p.due && 'due date',
@@ -102,8 +122,7 @@ export async function runReader(text: string, llm: LLM | null): Promise<{ parsed
   if (p.injectionFlags.length) checks.push(check('injection_text', 'info', `Document contains instruction-like text (${p.injectionFlags.join('; ')}). Treated as data and not followed.`));
   if (p.changeRequest) checks.push(check('change_request', 'info', `Document includes a wallet-change notice from ${p.changeRequest.fromEmail}.`));
 
-  let trace: LlmTrace | undefined;
-  if (llm) {
+  if (llm && !trace) {
     const out = await ask(llm,
       `You extract fields from invoices. ${DATA_ONLY_RULE} Return {"invoiceNumber","vendorName","payee","total"} using null for anything absent. "total" is a plain decimal string.`,
       untrusted('invoice', text), readerSchema);
@@ -121,8 +140,9 @@ export async function runReader(text: string, llm: LLM | null): Promise<{ parsed
     }
   }
 
-  const conf = (p.injectionFlags.length ? 0.9 : 0.98) - (missing.length ? 0.2 : 0);
-  return { parsed: p, result: finish('READER', checks, 'Fields extracted and the source file hashed.', conf, undefined, trace) };
+  const base = (p.injectionFlags.length ? 0.9 : 0.98) - (missing.length ? 0.2 : 0);
+  const conf = modelFilled.length ? Math.min(base, 0.8) : base; // values a model proposed are less certain than parsed ones
+  return { parsed: p, result: finish('READER', checks, 'Fields extracted and the source file hashed.', conf, modelFilled.length ? { modelFilled } : undefined, trace) };
 }
 
 // ---- Verifier ----

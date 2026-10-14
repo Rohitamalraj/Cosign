@@ -9,6 +9,8 @@ interface Store {
   error: string | null;
   /** Run an invoice through the real agents. Returns the result, or throws with a readable message. */
   submit: (text: string) => Promise<Invoice>;
+  /** Upload a text-based PDF (max 5 MB). Scans are rejected with a readable message. */
+  submitPdf: (file: File) => Promise<Invoice>;
   /** A human decision. Approval can only clear the limit rule; the server enforces the rest. */
   humanDecide: (uid: string, approve: boolean) => Promise<void>;
   reset: () => Promise<void>;
@@ -48,6 +50,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const { invoice } = await api<{ invoice: Invoice }>('/api/invoices', { method: 'POST', body: JSON.stringify({ text }) });
       await refresh();
       return invoice;
+    },
+    submitPdf: async (file) => {
+      const res = await fetch('/api/invoices/pdf', { method: 'POST', headers: { 'content-type': 'application/pdf' }, body: file });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((body as { error?: string }).error ?? `upload failed (${res.status})`);
+      await refresh();
+      return (body as { invoice: Invoice }).invoice;
     },
     humanDecide: async (uid, approve) => {
       await api(`/api/invoices/${encodeURIComponent(uid)}/decision`, { method: 'POST', body: JSON.stringify({ approve }) });

@@ -17,6 +17,7 @@ import {
   type Ledger, type ProcessResult, type RoleName,
 } from '../../../agents/src';
 import { findVendorByDomain, findVendorByName } from '../../../agents/src/ledger';
+import { pdfToText } from '../../../agents/src/pdf';
 
 const num = (n: bigint) => Number(n) / 1_000_000;
 const short = (s: string, a = 6, b = 4) => (s.length > a + b + 1 ? `${s.slice(0, a)}…${s.slice(-b)}` : s);
@@ -191,6 +192,11 @@ export async function submit(text: string): Promise<Invoice> {
   if (idx >= 0) e.invoices[idx] = inv; else e.invoices.unshift(inv);
   persist(e);
   return inv;
+}
+
+/** A text PDF goes through the same path as pasted text. Throws PdfError with a readable message when it cannot be read. */
+export async function submitPdf(bytes: Uint8Array): Promise<Invoice> {
+  return submit(await pdfToText(bytes));
 }
 
 /** Record a payment in the demo ledger. No chain transaction exists; the receipt is marked simulated. */
