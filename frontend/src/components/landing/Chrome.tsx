@@ -153,7 +153,7 @@ export function LandingFooter() {
         ))}
       </div>
       <div className="mx-auto max-w-[1384px] border-t border-ink/10 px-5 py-5">
-        <p className="font-mono text-[11px] text-cement">Built for the Tameion Agents Hackathon. Product screens on this page use mock data. Test USDC on Arc testnet.</p>
+        <p className="font-mono text-[11px] text-cement">Built for the Tameion Agents Hackathon. Product screens on this page are illustrative. The real run is on the On-chain page. Test USDC on Arc testnet.</p>
       </div>
     </footer>
   );

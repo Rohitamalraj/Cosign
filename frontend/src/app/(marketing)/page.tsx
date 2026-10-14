@@ -4,7 +4,7 @@ import { HandleButton, Sparkle } from '@/components/landing/Chrome';
 import { HeroCards } from '@/components/landing/HeroCards';
 import { HeroLine, Parallax, Reveal, Stagger, StaggerItem } from '@/components/landing/Motion';
 
-const stack = ['Arc', 'USDC', 'Circle Wallets', 'Paymaster', 'USYC', 'CCTP', 'ERC-8004', 'EIP-712'];
+const stack = ['Arc', 'USDC', 'Circle Wallets', 'EIP-712'];
 
 const stats = [
   ['76%', 'of US organizations faced attempted or actual payments fraud in 2025', 'AFP 2026 survey'],
@@ -20,12 +20,12 @@ const personas = [
 ];
 
 const integrations = [
-  ['Arc', 'Settlement in USDC with USDC gas and sub-second finality.'],
-  ['Circle Wallets', 'The Executor wallet is controlled through the policy contract.'],
-  ['Paymaster', 'Vendors never need to hold a gas token.'],
-  ['USYC', 'Idle reserve earns yield and is redeemed when cash is needed.'],
-  ['CCTP', 'Pay vendors on other chains with the same receipt format.'],
-  ['ERC-8004', 'Portable agent identity, reputation and validation registries.'],
+  ['Arc and USDC', 'Settlement and gas are both USDC. The policy contract and registry are deployed and verifiable.', 'live'],
+  ['Circle Wallets', 'Custody for every agent signing key and for the Executor. No raw private key in our process.', 'live'],
+  ['Policy contract', 'Eight release rules, enforced on-chain. Re-check every result from the chain itself.', 'live'],
+  ['USYC', 'The Treasurer parks idle cash and redeems it when short. Needs contract changes.', 'next'],
+  ['CCTP', 'Pay vendors that settle on another chain, with the same receipt format.', 'next'],
+  ['ERC-8004', 'Our registry is modelled on it. Portable identity across chains is future work.', 'next'],
 ];
 
 const faqs = [
@@ -34,7 +34,7 @@ const faqs = [
   ['Can an agent be tricked by text in an invoice?', 'Invoice text is treated as untrusted data. The Reader extracts fields and never follows instructions found in documents, and only contract-released payments are executed.'],
   ['Do signatures prove an agent was right?', 'No. They prove who concluded what. Correctness comes from independence between agents, the Auditor’s later ground truth and bonded reputation. The contract guarantees the required checks happened and agreed.'],
   ['What happens when agents disagree?', 'Any FAIL or ESCALATE holds the payment and routes it to a human. The system never averages a doubt away and never pays on timeout.'],
-  ['Is this using real money?', 'This build runs on Arc testnet with test USDC. Screens on this page use mock data until the backend is connected.'],
+  ['Is this using real money?', 'No. It runs on Arc testnet with test USDC. The On-chain page lets you re-verify the real run from the chain. The invoice inbox uses a demo ledger, so payments there are simulated, and the traction counts only real design partners (none yet).'],
 ];
 
 function Section({ id, children, className = '' }: { id?: string; children: React.ReactNode; className?: string }) {
@@ -196,17 +196,20 @@ export default function Landing() {
         {/* Integration */}
         <Section id="stack" className="pt-28">
           <Reveal>
-            <Title serif="Instant integration" bold="with the whole Circle stack" />
-            <p className="mx-auto mt-5 max-w-xl text-center text-ink/70">Out-of-the-box wallets, gas, treasury and cross-chain rails make setup a breeze.</p>
+            <Title serif="Built on Circle" bold="where it earns its place" />
+            <p className="mx-auto mt-5 max-w-xl text-center text-ink/70">Three pieces are live on Arc testnet today. The rest is on the roadmap, and we don’t claim it.</p>
           </Reveal>
           <Stagger className="mt-12 grid gap-px border border-ink/15 bg-ink/15 md:grid-cols-3" gap={0.07}>
-            {integrations.map(([n, d], i) => (
+            {integrations.map(([n, d, status], i) => (
               <StaggerItem key={n} className="bg-white p-7">
-                <div className="mb-6 grid h-28 place-items-center border border-ink/10 bg-gradient-to-br from-rose/20 to-lilac/30">
-                  <span className="font-display text-[34px] font-black tracking-h1 text-ink/70">{n}</span>
+                <div className={`mb-6 grid h-28 place-items-center border border-ink/10 ${status === 'live' ? 'bg-gradient-to-br from-rose/20 to-lilac/30' : 'bg-opal'}`}>
+                  <span className={`font-display text-[30px] font-black tracking-h1 ${status === 'live' ? 'text-ink/70' : 'text-ink/35'}`}>{n}</span>
                 </div>
-                <p className="font-mono text-[11px] text-cement">0{i + 1}</p>
-                <p className="mt-1 text-ink/70">{d}</p>
+                <div className="flex items-center justify-between">
+                  <p className="font-mono text-[11px] text-cement">0{i + 1}</p>
+                  <span className={`border px-1.5 font-mono text-[10px] uppercase tracking-[0.08em] ${status === 'live' ? 'border-jade/70 bg-jade/15 text-[#2c6b57]' : 'border-ink/20 text-cement'}`}>{status === 'live' ? 'Live on testnet' : 'Roadmap'}</span>
+                </div>
+                <p className="mt-2 text-ink/70">{d}</p>
               </StaggerItem>
             ))}
           </Stagger>
@@ -232,10 +235,10 @@ export default function Landing() {
         <Section className="py-28 text-center">
           <Reveal>
             <h2 className="font-serif text-[48px] italic leading-none sm:text-[72px]">Getting started is easy.</h2>
-            <p className="mx-auto mt-5 max-w-lg text-[16px] text-ink/70">Open the app with mock data, or replay the five scripted cases the judges will see.</p>
+            <p className="mx-auto mt-5 max-w-lg text-[16px] text-ink/70">Re-verify the real Arc run from the chain, or open the app and run your own invoice through the agents.</p>
             <div className="mt-8 flex flex-wrap justify-center gap-4">
               <HandleButton href="/dashboard" solid>Open the app</HandleButton>
-              <Link href="/demo" className="border border-ink/25 bg-white/70 px-5 py-3 text-[15px] leading-none hover:border-ink">Run the demo</Link>
+              <Link href="/onchain" className="border border-ink/25 bg-white/70 px-5 py-3 text-[15px] leading-none hover:border-ink">Verify on-chain</Link>
             </div>
           </Reveal>
         </Section>

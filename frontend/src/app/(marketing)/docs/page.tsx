@@ -21,7 +21,7 @@ const lifecycle = [
   ['Verifier', 'Checks vendor identity and destination wallet: screening, history, change-of-address rules.'],
   ['Matcher', 'Compares the invoice to the contract, purchase order and delivery proof.'],
   ['Sentinel', 'Checks for duplicates, near-duplicates, amount drift and look-alike vendors.'],
-  ['Treasurer', 'Chooses the payment day: early-pay discount against cash on hand, USYC redemption if needed.'],
+  ['Treasurer', 'Chooses the payment day: early-pay discount against cash on hand, USYC redemption is planned, not built.'],
   ['Policy contract', 'Verifies all signed attestations, the quorum and the limits.'],
   ['Executor', 'Sends USDC on Arc from the policy wallet. A receipt bundles attestations, evidence and the transaction hash.'],
   ['Auditor', 'Reconciles the payment to the invoice and ledger, then writes outcomes that update reputation.'],

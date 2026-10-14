@@ -6,7 +6,25 @@ Cosign splits the AP job into eight single-purpose agents. Each one signs what i
 
 Built for the **Tameion Agents Hackathon**, RFB 2 (AP/AR automation), with elements of RFB 3 (vendor and agent reputation) and RFB 4 (limits enforced in a contract, not a prompt).
 
-> **Status: work in progress.** The contracts are **deployed on Arc testnet** and the five demo cases have run on-chain end to end, with the agents signing and the Executor sending through **Circle Wallets** (158 tests, and a script that re-verifies the run from chain state). The web app still shows simulated payments and mock traction and reputation figures, and there are no real users yet. See [Live on Arc testnet](#live-on-arc-testnet) and [What works today](#what-works-today).
+> **Status: work in progress.** The contracts are **deployed on Arc testnet**. The five demo cases ran on-chain end to end (agents signing and the Executor sending through **Circle Wallets**), and the Auditor has moved reputation and slashed a bond on-chain. 159 tests pass. **There are no real users yet**, and the invoice inbox in the web app pays from a simulated demo ledger. See [What works today](#what-works-today).
+
+## For judges: verify it in 60 seconds
+
+You do not need to trust this README. Everything about the Arc run is re-checked from the chain, with no keys:
+
+1. **In the app:** run `cd frontend && npm install && npm run build && npm run start`, open `http://localhost:3000/onchain`, press **Re-verify now**. It reads Arc testnet and checks every case, every receipt (signatures, registry, receipt hash, human approval) and each agent's live score and bond.
+2. **In a terminal:** `cd executor && npm install && npx tsx scripts/verify-onchain.ts`. Same checks, prints `ALL VERIFIED from chain state`.
+3. **On the explorer:** [case A, 1.25 USDC paid](https://explorer.testnet.arc.io/tx/0x6373024565374eb2302cbd8be1c0f1ea6517d2b290dfa99553c53b051e5c1f3f) and [case E, 9.80 USDC paid after a human signature](https://explorer.testnet.arc.io/tx/0xf19f16ad66294d4e7a7995784212feaebb163757d249cb057fdfa123a949b1d6). Cases B, C and D were held by the contract, so there is no payment transaction to find.
+
+**What is real, and what is not**
+
+| Real | Not real, or scaled |
+| --- | --- |
+| Contracts on Arc testnet, real USDC token, gas in USDC | **Test money only, at 1/1000 scale** (faucet limit) |
+| Agents sign through Circle-held keys; contract verifies with `ecrecover` | The five invoices are **scripted** by us, including the attacks |
+| Held cases moved nothing; paid cases are in the paid set | The Auditor's ground truth is scripted; the slash is a **seeded** stand-in |
+| 159 automated tests, incl. agents -> contract end to end | **No real users yet** (see `docs/TRACTION.md`) |
+| Replayable receipts | The web inbox pays from a **simulated** demo ledger |
 
 ## Why
 
@@ -68,16 +86,16 @@ A read-only `evaluate()` returns the failing rule without spending anything, so 
 | Agent workers (Reader, Verifier, Matcher, Sentinel, Treasurer) | Done. Deterministic checks plus optional free LLMs. 54 tests |
 | Agents -> contract, end to end | Done. 10 tests push the agents' real signed output through the real contract |
 | Executor service (`release`, idempotency, crash recovery, receipts, HTTP API) | Done. 22 unit tests plus 22 chain tests against the real contract |
-| Frontend: invoices, escalations, receipts, demo, dashboard | **Wired to the real agents** through server-side API routes. Payments are recorded in a demo ledger (simulated, no chain) |
+| Frontend: invoices, escalations, receipts, demo | **Wired to the real agents** through server-side API routes. Payments are recorded in a demo ledger (simulated, no chain) |
 | Frontend: landing, docs, pricing | Static pages |
-| Frontend: agent scores and bonds, traction figures | Still **mock** (the Auditor does not exist yet and there are no real users) |
-| Frontend -> Executor -> Arc | Not wired. The Executor and receipt replay exist and are tested, but nothing is deployed to Arc |
+| Frontend: On-chain, Agents, dashboard | **Live from Arc testnet:** keyless re-verification, receipt replay, agent scores and bonds, Auditor events. Traction shows real partners only, which is zero today |
+| Executor + receipt replay | Done and used on Arc through a Circle wallet (the demo script). Not triggered from the web UI |
 | PDF and OCR ingestion | Not built. Agents read plain-text invoices today |
 | Deployment to Arc testnet | **Done.** Registry and policy deployed against the real USDC; five demo cases run on-chain at testnet scale |
 | Circle Wallets | **Used.** The five agents' signing keys and the Executor wallet are Circle developer-controlled wallets on ARC-TESTNET |
-| Web app -> Arc | Not wired yet. The app still uses the local demo ledger. The on-chain run is a script (`executor/scripts/onchain-demo.ts`) |
-| Auditor, reconciliation, real receipts | Not built |
-| Real users and traction | None yet. Nothing on the site is real usage |
+| Web inbox "Release" -> Arc | Not wired, on purpose for now: an unauthenticated public page that can trigger payments would be unsafe. The on-chain run is a script (`executor/scripts/onchain-demo.ts`) |
+| Auditor | **Partly.** `contracts/scripts/audit-arc.js` writes outcomes on-chain (scores move, a bond is slashed and restored), but the ground truth is scripted. Reconciliation against real external data is not built |
+| Real users and traction | **None yet.** The dashboard shows 0 until a consenting partner is added to `frontend/data/traction.json`. Playbook: `docs/TRACTION.md` |
 
 Every number on the frontend (volume, invoices processed, days payable, scores) is invented mock data and is labelled as such in the UI.
 
@@ -99,7 +117,8 @@ What ran on-chain (all files are in [`deployments/`](./deployments)):
 2. `executor/scripts/circle-setup.ts` created six Circle wallets (five agents and the Executor) and proved that a Circle-held key signs our EIP-712 attestation so that `ecrecover` returns the wallet address.
 3. `contracts/scripts/setup-arc.js` set the Executor, human approver and screener, allowlisted the vendors, registered the five agents with 1 USDC bonds, and funded the policy contract.
 4. `executor/scripts/onchain-demo.ts` ran the five cases: the agents sign through Circle, and the Executor submits `release` through Circle's contract-execution API. Receipts are in `deployments/receipts/` and replay offline.
-5. `node executor/scripts/verify-onchain.js` re-checks every result straight from the RPC, with no keys.
+5. `contracts/scripts/audit-arc.js` ran the Auditor: four confirmed catches raised the Sentinel and Verifier scores, one **seeded** earlier miss lowered the Sentinel's score and slashed 0.2 USDC from its bond into the recovery pool, and the operator then topped the bond back up. Transactions and reasons are in `deployments/auditor-events.json`.
+6. `executor/scripts/verify-onchain.ts` (and the `/onchain` page) re-checks every result straight from the RPC, with no keys.
 
 **Where Circle's tools are used, and where they are not** (only what has a real job here):
 
@@ -119,7 +138,8 @@ Honest notes on this run:
 contracts/   Solidity (Hardhat): CosignPolicy, AgentRegistry, MockUSDC, tests
 agents/      TypeScript agent workers: parse, check, sign EIP-712 attestations; demo ledger and invoices
 executor/    The only component that spends: submits releases idempotently (local key or Circle wallet), writes replayable receipts, HTTP API
-deployments/ Public addresses, the on-chain demo run and its receipts (no keys)
+deployments/ Public addresses, the on-chain demo run, receipts and Auditor events (no keys)
+docs/        TRACTION.md (how to recruit and record real design partners), DEMO-SCRIPT.md (video script)
 frontend/    Next.js 14 + Tailwind + Framer Motion, mock data in src/lib/data.ts
 Cosign — Product Requirements Document.md / .pdf
 ```

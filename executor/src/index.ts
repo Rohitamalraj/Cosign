@@ -11,6 +11,7 @@ export * from './receipt';
 export * from './server';
 export * from './store';
 export * from './types';
+export * from './verify';
 
 /** Connect the policy contract with the Executor's own key. This wallet should hold gas and nothing else. */
 export function connectPolicy(args: { rpcUrl: string; policyAddress: string; privateKey: string }): Contract {

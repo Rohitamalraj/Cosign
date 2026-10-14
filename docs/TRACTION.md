@@ -1,0 +1,91 @@
+# Traction playbook
+
+Traction is 30% of the score, and the brief says it needs **at least one real user with a real money problem**. Synthetic data does not count, test USDC does. The dashboard shows `0` real design partners until you add one. That is deliberate: an honest zero beats an invented number.
+
+Deadline: Oct 17, 11:59 PM ET. Be explicit in the submission about what was real, what was seeded, and that it was testnet USDC.
+
+## 1. Who to ask (today)
+
+Aim for 3 to 5 people who send or pay invoices by hand and would run **2 to 5 real invoices** through the system on testnet. Best fits, from the PRD:
+
+- A freelancer who sends 3 to 10 invoices a month and chases late customers.
+- A small agency owner paying 5 to 20 contractors.
+- A student startup or open-source maintainer who pays or gets paid by invoice.
+- Yourself, if you have real invoices (the PRD allows it as one user, if you say so plainly).
+
+## 2. Message you can send
+
+**Short DM**
+
+> Hey [name], I'm building Cosign for a hackathon: it checks invoices before USDC is paid, so a fake vendor, a swapped wallet or a duplicate gets blocked. I need 2 to 5 real invoices run through it on a test network (no real money moves), and the dates of your last few invoices and payments so I can measure how long paying takes today. Takes about 20 minutes. Can I use your numbers in my submission, with your name or anonymised, your choice?
+
+**Email**
+
+> Subject: 20 minutes, no money at risk: help test an invoice checker?
+>
+> I'm submitting Cosign to the Tameion Agents Hackathon. It is a set of agents that each sign off on an invoice, and a smart contract that only releases payment if they all agree. Everything runs on a test network with test money.
+>
+> What I'd ask: (1) the dates of your last 3 to 6 invoices and when they were paid, (2) 2 to 5 real invoices as text so I can run them through, (3) permission to quote the result. You can be anonymous. I'll send you the outcome.
+
+## 3. Consent (read this out or paste it)
+
+> I agree that [business or alias] is a design partner for Cosign's hackathon submission. I understand it runs on a test network with test USDC, no real money moves, and my invoice contents stay off-chain (only hashes and verdicts are published). Cosign may report counts, test volume and before/after payment timing, with my name or an alias as I choose, and I can withdraw at any time. Signed / confirmed by message on [date].
+
+Keep the written confirmation (a message is enough). Redact screenshots.
+
+## 4. Baseline: how long it takes today
+
+Ask for a sheet with these columns, one row per invoice, last 3 to 6 months:
+
+| invoice_id | direction | counterparty (alias ok) | amount | currency | invoice_date | due_date | paid_date |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+
+- **Days payable outstanding (DPO)** = average of `paid_date - invoice_date` for rows where they pay.
+- **Days receivable outstanding (DRO)** = the same for rows where they get paid.
+
+Compute the baseline now. Compute the "after" only from real invoices actually run through Cosign, with the dates they really moved. If there are too few to compare, say so and do not extrapolate.
+
+## 5. Running their invoices (what works today, honestly)
+
+- The app reads **plain-text invoices**. PDF and OCR are not built, so convert their invoice to text first.
+- The agents check an invoice against a **ledger** (registered vendors, agreements or POs, payment history). Today that ledger is a JSON file, with no UI. To run a partner's invoices you add their vendors and agreements to a ledger file (`agents/data/ledger.json` is the format) with them on a call. This takes about 10 minutes per partner.
+- In the web app (`/invoices`) payments are **simulated**. The real on-chain path is the script in `executor/scripts/onchain-demo.ts`, which pays testnet USDC through Circle wallets. For a partner's real invoices you can run either; say which one you used.
+
+## 6. Recording it
+
+Edit `frontend/data/traction.json`. One object per partner **with consent**:
+
+```json
+{
+  "partners": [
+    {
+      "name": "Alias or real name",
+      "consent": true,
+      "realInvoices": 4,
+      "usdcVolume": 12.4,
+      "testnet": true,
+      "dpoBeforeDays": 21,
+      "dpoAfterDays": 6,
+      "notes": "Freelance designer; 3 payables, 1 receivable. Invoices real; payments on Arc testnet."
+    }
+  ]
+}
+```
+
+The dashboard then shows the real partner count and the before/after chart. Do not add seeded or invented entries, and do not put a number in `dpoAfterDays` you cannot back with real dates.
+
+## 7. Submission answers (fill from the file)
+
+| Question | Answer | Where it comes from |
+| --- | --- | --- |
+| Businesses onboarded | _count of consenting partners_ | `traction.json` |
+| Value moved | _sum of `usdcVolume`, labelled testnet_, plus the 11.05 USDC of the scripted on-chain run, labelled as scripted | `traction.json`, `deployments/onchain-demo.json` |
+| Problems solved | duplicate / near-duplicate caught, wallet-swap held, injection ignored, over-limit escalated, each with a transaction or receipt | `/onchain` page |
+| Real vs seeded | Real: partner invoices. Seeded: the five scripted cases and the Auditor's slash event | be explicit |
+| Network | Arc testnet, test USDC | |
+
+Judges discount synthetic data, so the clearest honest statement wins: *"N real users, M real invoices, X test USDC. The five attack cases are scripted and labelled as such."*
+
+## 8. If you only get one partner
+
+One real user with a real invoice and honest numbers beats five invented ones. Run that one well: show their invoice (redacted), the verdicts, the transaction, the receipt replaying, and the before/after dates.

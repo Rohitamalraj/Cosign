@@ -132,6 +132,32 @@ describe('Executor (against the real contract)', function () {
       for (const [name, r] of bad) expect((await ex.replayReceipt(r)).ok, name).to.equal(false);
     });
 
+    it('the keyless verifier confirms a real release and catches records that lie about the chain', async () => {
+      const dep = { chainId: Number(cfg.chainId), usdc: token.target, registry: registry.target, policy: policy.target, approver: approver.address };
+      const base = { case: 'X', executor: 'RELEASED', txHash: released.txHash, invoiceHash: released.receipt.invoiceHash, payee: released.receipt.payee, amountUsdc: 1250 };
+
+      const good = await ex.verifyRun(ethers.provider, dep, [base], [released.receipt]);
+      expect(good.ok, JSON.stringify(good.cases)).to.equal(true);
+
+      const wrongAmount = await ex.verifyRun(ethers.provider, dep, [{ ...base, amountUsdc: 9999 }], []);
+      expect(wrongAmount.ok).to.equal(false);
+
+      const claimsHeld = await ex.verifyRun(ethers.provider, dep, [{ ...base, executor: 'HELD', txHash: undefined }], []);
+      expect(claimsHeld.ok, 'a record saying "held" for a paid invoice must fail').to.equal(false);
+
+      const otherTx = (await token.mint(stranger.address, 1)).hash; // a real, successful tx that is not a release
+      const wrongTx = await ex.verifyRun(ethers.provider, dep, [{ ...base, txHash: otherTx }], []);
+      expect(wrongTx.ok).to.equal(false);
+
+      const tampered = structuredClone(released.receipt);
+      tampered.attestations[2].attestation.verdict = 2;
+      expect((await ex.verifyRun(ethers.provider, dep, [base], [tampered])).ok).to.equal(false);
+
+      const state = await ex.readAgentState(ethers.provider, dep, [1, 2, 3, 4, 5]);
+      expect(state.agents).to.have.length(5);
+      expect(state.agents.every((a) => a.eligible)).to.equal(true);
+    });
+
     it('replay with the wrong registry mapping fails the signer check', async () => {
       const r = structuredClone(released.receipt);
       r.attestations[0].attestation.agentId = 2; // claims the Verifier's agent id signed the Reader attestation

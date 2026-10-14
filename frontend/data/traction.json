@@ -1,0 +1,4 @@
+{
+  "_note": "Real design partners only. Do not add invented or seeded entries: judges discount synthetic data and the submission asks what was real. Add one object per business that gave consent. See docs/TRACTION.md. Empty means no partners yet, and the dashboard says so.",
+  "partners": []
+}

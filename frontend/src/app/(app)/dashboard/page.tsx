@@ -1,11 +1,25 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, Stat, VerdictPill, usd } from '@/components/ui';
-import { auditEvents, traction } from '@/lib/data';
+import { Card, Stat, usd } from '@/components/ui';
 import { useStore } from '@/lib/store';
+import { EXPLORER, useArc } from '@/lib/useArc';
+import tractionFile from '../../../../data/traction.json';
 
-const stack = ['Arc', 'USDC', 'Circle Wallets', 'Paymaster', 'USYC', 'CCTP', 'ERC-8004'];
+/** One real design partner. Kept in frontend/data/traction.json; see docs/TRACTION.md. */
+interface Partner {
+  name: string;
+  consent: boolean;
+  realInvoices: number;
+  usdcVolume: number;
+  testnet: boolean;
+  dpoBeforeDays?: number;
+  dpoAfterDays?: number;
+  notes?: string;
+}
+const partners = (tractionFile as { partners: Partner[] }).partners;
+
+const stack = ['Arc', 'USDC', 'Circle Wallets', 'EIP-712'];
 
 const pipeline = [
   { n: 'Reader', d: 'parses invoice', k: 'sign' },
@@ -20,13 +34,21 @@ const pipeline = [
 
 export default function Overview() {
   const { invoices } = useStore();
-  const released = invoices.filter((i) => i.status === 'released');
+  const { view } = useArc();
+
   const inbox = invoices.filter((i) => i.status === 'escalated' || i.status === 'held').length;
-  const maxDpo = Math.max(...traction.dpo.map((d) => d.before));
-  const paidVolume = released.reduce((s, i) => s + i.amount, 0);
-  const attacks = invoices.filter((i) => i.caseId && i.caseId !== 'A');
-  const stopped = attacks.filter((i) => i.status === 'held' || i.status === 'escalated').length;
+  const escalatedShare = invoices.length ? Math.round((inbox / invoices.length) * 100) : 0;
   const duplicatesCaught = invoices.filter((i) => i.attestations.some((a) => a.role === 'SENTINEL' && a.verdict === 'FAIL' && /duplicate/i.test(a.note))).length;
+
+  // Real, from the chain record: payments the contract released, and attack cases it held.
+  const paid = (view?.cases ?? []).filter((c) => c.executor === 'RELEASED' || c.executor === 'ALREADY_RELEASED');
+  const heldOnChain = (view?.cases ?? []).filter((c) => c.executor === 'HELD' || (c.case !== 'A' && !!c.reason));
+  const paidUsdc = paid.reduce((s, c) => s + c.amountUsdc, 0);
+  const attacks = (view?.cases ?? []).filter((c) => c.case !== 'A');
+  const verified = view?.verifiedOk === true;
+
+  const withBaseline = partners.filter((p) => p.dpoBeforeDays !== undefined && p.dpoAfterDays !== undefined);
+  const maxDpo = Math.max(1, ...withBaseline.map((p) => p.dpoBeforeDays ?? 0));
 
   return (
     <div className="space-y-4">
@@ -42,7 +64,7 @@ export default function Overview() {
             </p>
           </div>
           <div className="mt-10 flex flex-wrap gap-3">
-            <Link href="/demo" className="btn-solid">Replay the five demo cases</Link>
+            <Link href="/onchain" className="btn-solid">Verify the Arc run yourself</Link>
             <Link href="/invoices" className="btn-ghost">Open invoice inbox</Link>
           </div>
         </div>
@@ -51,18 +73,20 @@ export default function Overview() {
           <Card className="bg-ink text-opal">
             <p className="eyebrow !text-lilac">Waiting on a human</p>
             <p className="mt-3 font-display text-[64px] font-extrabold leading-none tracking-h1">{inbox}</p>
-            <p className="mt-3 text-[14px] text-opal/70">Invoices held or escalated by the contract.</p>
+            <p className="mt-3 text-[14px] text-opal/70">Invoices held or escalated (this app's demo ledger).</p>
             <Link href="/escalations" className="mt-5 inline-block border-b border-sand pb-0.5 text-sand">Open escalation queue →</Link>
           </Card>
           <Card>
-            <p className="eyebrow">Duplicate payments executed</p>
-            <p className="mt-3 font-display text-[64px] font-extrabold leading-none tracking-h1 text-violet">{traction.duplicatePaid}</p>
-            <p className="mt-3 text-[14px] text-ink/60">Paid set on Arc rejects any repeat of an invoice hash.</p>
+            <p className="eyebrow">Duplicate payments executed on Arc</p>
+            <p className="mt-3 font-display text-[64px] font-extrabold leading-none tracking-h1 text-violet">0</p>
+            <p className="mt-3 text-[14px] text-ink/60">
+              {view?.available ? `Checked against the chain: ${paid.length} payments, each in the paid set once.` : 'The contract\'s paid set rejects any repeat of an invoice hash.'}
+            </p>
           </Card>
         </div>
       </section>
 
-      {/* Logo cloud */}
+      {/* What it is built on: only what is actually used */}
       <section className="card flex flex-wrap items-center gap-x-10 gap-y-3 px-6 py-5">
         <span className="eyebrow">Built on</span>
         {stack.map((s) => (
@@ -70,48 +94,56 @@ export default function Overview() {
         ))}
       </section>
 
-      {/* Traction bento */}
+      {/* Real numbers only */}
       <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-12">
-        <Card className="lg:col-span-3"><Stat label="Businesses onboarded" value={String(traction.businesses)} sub="Mock number: no real users yet" /></Card>
-        <Card className="lg:col-span-3"><Stat label="Invoices processed" value={String(invoices.length)} sub="Live: read and signed by the real agents" /></Card>
-        <Card className="lg:col-span-3"><Stat label="USDC recorded as paid" value={usd(paidVolume)} sub="Simulated: demo ledger, no chain yet" accent /></Card>
-        <Card className="lg:col-span-3"><Stat label="Attack cases stopped" value={`${stopped}/${attacks.length}`} sub="Live: near-duplicate, wallet swap, injection, over-limit" /></Card>
+        <Card className="lg:col-span-3"><Stat label="Real design partners" value={String(partners.filter((p) => p.consent).length)} sub={partners.length ? 'With consent, from traction.json' : 'None yet. This is the number to move.'} /></Card>
+        <Card className="lg:col-span-3"><Stat label="USDC paid on Arc testnet" value={usd(paidUsdc)} sub={view?.available ? (verified ? 'Verified from chain state. Test money, demo scale' : 'Recorded run; re-check on the On-chain page') : 'No on-chain record loaded'} accent /></Card>
+        <Card className="lg:col-span-3"><Stat label="Attack cases held on-chain" value={view?.available ? `${heldOnChain.length}/${attacks.length}` : '—'} sub="Near-duplicate, wallet change, injection, over-limit" /></Card>
+        <Card className="lg:col-span-3"><Stat label="Invoices through the agents" value={String(invoices.length)} sub="Live agents on this app's demo ledger" /></Card>
 
         <Card className="md:col-span-2 lg:col-span-7">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="h2">Days payable outstanding, before vs after</h2>
-            <span className="eyebrow">Mock figures</span>
+            <span className="eyebrow">{withBaseline.length ? 'Real partners' : 'No data yet'}</span>
           </div>
-          <div className="space-y-4">
-            {traction.dpo.map((d) => (
-              <div key={d.name} className="grid grid-cols-[84px_1fr_64px] items-center gap-3">
-                <span className="text-[13px]">{d.name}</span>
-                <div className="space-y-1.5">
-                  <div className="h-2.5 bg-lilac/60" style={{ width: `${(d.before / maxDpo) * 100}%` }} />
-                  <div className="h-2.5 bg-violet" style={{ width: `${(d.after / maxDpo) * 100}%` }} />
-                </div>
-                <span className="text-right font-mono text-[12px]">{d.before}d → {d.after}d</span>
+          {withBaseline.length === 0 ? (
+            <p className="max-w-lg text-ink/70">
+              No design partner has a baseline yet, so there is nothing honest to chart. Once a partner shares their last few invoice and payment dates and
+              runs real invoices, their before and after appear here. The collection steps are in <code className="font-mono text-[12px]">docs/TRACTION.md</code>.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-4">
+                {withBaseline.map((p) => (
+                  <div key={p.name} className="grid grid-cols-[84px_1fr_64px] items-center gap-3">
+                    <span className="text-[13px]">{p.name}</span>
+                    <div className="space-y-1.5">
+                      <div className="h-2.5 bg-lilac/60" style={{ width: `${((p.dpoBeforeDays ?? 0) / maxDpo) * 100}%` }} />
+                      <div className="h-2.5 bg-violet" style={{ width: `${((p.dpoAfterDays ?? 0) / maxDpo) * 100}%` }} />
+                    </div>
+                    <span className="text-right font-mono text-[12px]">{p.dpoBeforeDays}d → {p.dpoAfterDays}d</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="mt-6 flex gap-5 font-mono text-[11px] uppercase tracking-[0.08em] text-cement">
-            <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 bg-lilac/60" />Before</span>
-            <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 bg-violet" />With Cosign</span>
-          </div>
+              <div className="mt-6 flex gap-5 font-mono text-[11px] uppercase tracking-[0.08em] text-cement">
+                <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 bg-lilac/60" />Before</span>
+                <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 bg-violet" />With Cosign</span>
+              </div>
+            </>
+          )}
         </Card>
 
         <Card className="md:col-span-2 lg:col-span-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="h2">Bounded autonomy</h2>
-            <span className="eyebrow">Mock figures</span>
+            <span className="eyebrow">Live, this app</span>
           </div>
           <dl className="divide-y divide-ink/10">
             {[
-              ['Escalated to a human', `${traction.escalatedShare}%`],
-              ['Human agreed with the agents', `${traction.humanAgreed}%`],
-              ['Receipts fully replayable', `${traction.receiptsReplayable}%`],
-              ['Duplicates caught (live)', String(duplicatesCaught)],
-              ['Released payments (simulated)', String(released.length)],
+              ['Held or escalated to a human', `${escalatedShare}%`],
+              ['Duplicates caught by the Sentinel', String(duplicatesCaught)],
+              ['Receipts replayed OK on-chain', view?.receipts ? `${view.receipts.filter((r) => r.ok).length}/${view.receipts.length}` : '—'],
+              ['Agents eligible for quorum', view?.agents ? `${view.agents.filter((a) => a.eligible).length}/${view.agents.length}` : '—'],
             ].map(([k, v]) => (
               <div key={k} className="flex items-baseline justify-between py-3">
                 <dt className="text-ink/70">{k}</dt>
@@ -145,7 +177,7 @@ export default function Overview() {
       {/* Feature trio */}
       <section className="grid gap-4 md:grid-cols-3">
         {[
-          ['Agents sign', 'Every verdict is an EIP-712 attestation bound to the invoice hash, payee and amount. Models give opinions; they never hold the keys.'],
+          ['Agents sign', 'Every verdict is an EIP-712 attestation bound to the invoice hash, payee and amount, signed by a key Circle holds. Models give opinions; they never hold the keys.'],
           ['Contracts decide', 'Eight release rules live on Arc. A missing, expired or conflicting attestation holds the payment. The system never pays on timeout.'],
           ['Reputation from outcomes', 'Scores move only when the Auditor proves an agent right or wrong, and a USDC bond is slashed for a bad approval.'],
         ].map(([t, d], i) => (
@@ -157,25 +189,26 @@ export default function Overview() {
         ))}
       </section>
 
-      {/* Recent catches */}
+      {/* Real Auditor events from the chain record */}
       <Card>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="h2">Recent Auditor outcomes (mock: the Auditor is not built yet)</h2>
-          <Link href="/agents" className="border-b border-ink/40 pb-0.5 text-[13px]">All reputation events →</Link>
+          <h2 className="h2">Recent Auditor outcomes (on-chain)</h2>
+          <Link href="/onchain" className="border-b border-ink/40 pb-0.5 text-[13px]">All events and checks →</Link>
         </div>
-        <ul className="divide-y divide-ink/10">
-          {auditEvents.slice(0, 4).map((e) => (
-            <li key={e.id} className="grid gap-1 py-3 sm:grid-cols-[130px_100px_90px_1fr] sm:items-baseline sm:gap-4">
-              <span className="font-mono text-[12px] text-cement">{e.when}</span>
-              <span className="font-semibold">{e.agent}</span>
-              <span className="flex items-center gap-2">
-                <VerdictPill v={e.delta >= 0 ? 'PASS' : 'FAIL'} />
-                <span className="font-mono text-[12px]">{e.delta > 0 ? '+' : ''}{e.delta}</span>
-              </span>
-              <span className="text-ink/75">{e.text}</span>
-            </li>
-          ))}
-        </ul>
+        {view?.auditorEvents?.length ? (
+          <ul className="divide-y divide-ink/10">
+            {view.auditorEvents.slice().reverse().slice(0, 4).map((e) => (
+              <li key={e.tx} className="grid gap-1 py-3 sm:grid-cols-[110px_90px_1fr_120px] sm:items-baseline sm:gap-4">
+                <span className="font-semibold">{e.agent[0] + e.agent.slice(1).toLowerCase()}</span>
+                <span className={`font-mono text-[12px] ${e.scoreDelta >= 0 ? 'text-[#2c6b57]' : 'text-[#8e2e2a]'}`}>{e.scoreDelta > 0 ? '+' : ''}{e.scoreDelta} ({e.scoreBefore}→{e.scoreAfter})</span>
+                <span className="text-ink/75">{e.reason}{e.seeded && <span className="ml-1.5 border border-citrine/60 bg-sand/30 px-1 font-mono text-[10px] uppercase text-[#7a5a14]">seeded</span>}</span>
+                <a className="font-mono text-[12px] text-violet underline sm:text-right" href={e.explorer ?? `${EXPLORER}/tx/${e.tx}`} target="_blank" rel="noreferrer">{e.tx.slice(0, 8)}…{e.tx.slice(-4)}</a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-ink/60">{view ? 'No Auditor events recorded yet.' : 'Loading the on-chain record…'}</p>
+        )}
       </Card>
     </div>
   );

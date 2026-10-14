@@ -14,6 +14,16 @@ export const POLICY_ABI = [
 
 export const REGISTRY_ABI = ['function signerOf(uint256 agentId) view returns (address)'];
 
+/** Read-only view of the registry, for dashboards and the keyless verifier. */
+export const REGISTRY_READ_ABI = [
+  ...REGISTRY_ABI,
+  'function getAgent(uint256 agentId) view returns (tuple(address operator, address signer, uint8 role, uint128 bond, int32 score, bool active))',
+  'function isEligible(uint256 agentId, uint8 role) view returns (bool)',
+  'function auditor() view returns (address)',
+  'function minBond() view returns (uint128)',
+  'function minScore() view returns (int32)',
+];
+
 /** Must stay identical to contracts/CosignPolicy.sol and agents/src/eip712.ts. */
 export const ATTESTATION_TYPES = {
   Attestation: [
