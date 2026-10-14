@@ -37,5 +37,16 @@
       "agentId": 5,
       "signer": "0xd50f88926030af30823cc370de05b327cbc865e5"
     }
+  },
+  "treasury": {
+    "address": "0x981142C4AC97fa7E345f5c369f3158824Ce06632",
+    "usyc": "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C",
+    "teller": "0x9fdF14c5B14173D74C08Af27AebFf39240dC105A",
+    "entitlements": "0xcc205224862c7641930c87679e98999d23c26113",
+    "maxInvestBps": 7000,
+    "operatingFloorUsdc": 1,
+    "usycAccess": "NOT ENTITLED YET: Circle support ticket required before deposit/redeem work on the real Teller",
+    "deployedAt": "2026-10-14T19:15:41.593Z",
+    "explorer": "https://explorer.testnet.arc.io/address/0x981142C4AC97fa7E345f5c369f3158824Ce06632"
   }
 }
