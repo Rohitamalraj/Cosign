@@ -1,0 +1,14 @@
+INVOICE INV-1045
+From: Kestrel Motion Ltd <billing@kestrelmotion.example>
+To: Acme Studio
+Issued: 2026-10-15
+Due: 2026-10-22
+Agreement: MS-2
+Currency: USDC
+Pay to wallet: 0x2fa7b87a71b2fba7fe216921e06c34bfe5e1b265
+
+Description | Qty | Rate | Amount
+Production milestone 2 | 1 | 9.80 | 9.80
+
+Total: 9.80 USDC
+Terms: Net 7

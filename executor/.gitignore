@@ -2,3 +2,5 @@ node_modules
 store
 .env
 .env.*
+circle-wallets.local.json
+store-arc

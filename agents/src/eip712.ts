@@ -1,4 +1,13 @@
-import { verifyTypedData, type Signer, type TypedDataDomain } from 'ethers';
+import { verifyTypedData, type TypedDataDomain, type TypedDataField } from 'ethers';
+
+/**
+ * Anything that can sign EIP-712 typed data and has an address: a local ethers wallet, or a key held by Circle
+ * Wallets (see executor/src/circle.ts). The agents never see the private key either way.
+ */
+export interface TypedDataSigner {
+  readonly address: string;
+  signTypedData(domain: TypedDataDomain, types: Record<string, TypedDataField[]>, value: Record<string, unknown>): Promise<string>;
+}
 
 /** Must stay identical to the typehash in contracts/CosignPolicy.sol. The e2e test in contracts/ proves it. */
 export const ATTESTATION_TYPES = {
@@ -33,8 +42,8 @@ export function domainFor(chainId: bigint | number, verifyingContract: string): 
   return { name: 'CosignPolicy', version: '1', chainId, verifyingContract };
 }
 
-export const signAttestation = (signer: Signer, domain: TypedDataDomain, a: Attestation): Promise<string> =>
-  signer.signTypedData(domain, ATTESTATION_TYPES, a);
+export const signAttestation = (signer: TypedDataSigner, domain: TypedDataDomain, a: Attestation): Promise<string> =>
+  signer.signTypedData(domain, ATTESTATION_TYPES, { ...a });
 
 export const recoverAttestationSigner = (domain: TypedDataDomain, a: Attestation, sig: string): string =>
   verifyTypedData(domain, ATTESTATION_TYPES, a, sig);

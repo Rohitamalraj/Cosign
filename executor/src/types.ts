@@ -39,6 +39,8 @@ export interface ReleaseRecord {
   state: ReleaseState;
   attempts: number;
   nonce?: number;
+  /** What the submitter can poll: a tx hash for a local key, a Circle transaction id for a Circle wallet. */
+  ref?: string;
   txHash?: string;
   rule?: number;
   detail?: number;

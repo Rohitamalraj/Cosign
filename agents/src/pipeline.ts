@@ -1,8 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { HDNodeWallet } from 'ethers';
 import { runMatcher, runReader, runSentinel, runTreasurer, runVerifier, type AgentContext } from './agents';
-import { signAttestation, domainFor, type Attestation } from './eip712';
+import { signAttestation, domainFor, type Attestation, type TypedDataSigner } from './eip712';
 import { canonicalJson, invoiceHash, keccak } from './hash';
 import { findVendorByDomain, findVendorByName, type Ledger } from './ledger';
 import { assertDistinctModels, type LlmConfig } from './llm';
@@ -54,7 +53,7 @@ export async function processInvoice(
   sourceText: string,
   ledger: Ledger,
   cfg: PipelineConfig,
-  keys: Record<RoleName, HDNodeWallet>,
+  keys: Record<RoleName, TypedDataSigner>,
 ): Promise<ProcessResult> {
   const llm = { reader: cfg.llm?.reader ?? null, matcher: cfg.llm?.matcher ?? null, sentinel: cfg.llm?.sentinel ?? null };
   assertDistinctModels(llm);

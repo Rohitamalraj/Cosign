@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "invoiceHash": "0xbd7337797bb5c64e018cfaec126670f4997674915935ad59c47bb19a55b94a75",
+  "payee": "0x2fa7b87a71b2fba7fe216921e06c34bfe5e1b265",
+  "amount": "9800000",
+  "category": "0x572d9d34c2795f4a414e0f89c184fecb9a4bfb275d84b3d40628cbb425b45476",
+  "policyVersion": "policy-v0.1.0",
+  "chainId": "5042002",
+  "policyAddress": "0x32781b9dd9aE9ef8C6a1b8a264d3Aca0aEcc72d7",
+  "txHash": "0xf19f16ad66294d4e7a7995784212feaebb163757d249cb057fdfa123a949b1d6",
+  "blockNumber": 67167162,
+  "releasedAt": "2026-10-14T13:35:34.000Z",
+  "humanSigned": true,
+  "humanSig": "0x000000006acf933254791d394718775224d320b3555df75c3c5fd1a39a9da4a6dd775de8b1c4bea30b8dfd35a2f3ab450aea56a2a5e4fe7b3b72ec8e8d6b91d35202a85c0abc4a371c",
+  "onChainReceiptHash": "0x27bffea8f1206c1c78b6741f96760598644022399198d8453b411f8118e6c04c",
+  "attestations": [
+    {
+      "attestation": {
+        "invoiceHash": "0xbd7337797bb5c64e018cfaec126670f4997674915935ad59c47bb19a55b94a75",
+        "payee": "0x2fa7b87a71b2fba7fe216921e06c34bfe5e1b265",
+        "amount": "9800000",
+        "role": 0,
+        "verdict": 1,
+        "confidenceBps": 9800,
+        "evidenceHash": "0xd69e364cb0de293b4be25912a117498fea9239b3fbbbce371b8dd04e72b80071",
+        "agentId": 1,
+        "expiry": 1791988525,
+        "nonce": "1791984925838000020"
+      },
+      "signature": "0x2eb3983372e95c14c796fb2cbb99e4408d63ab18e094ecd6ab56bea386122c757c6ce1afdf40a1a9e4fc60483337a760986ff9a27034e1f24277eec82d885f6b1c"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0xbd7337797bb5c64e018cfaec126670f4997674915935ad59c47bb19a55b94a75",
+        "payee": "0x2fa7b87a71b2fba7fe216921e06c34bfe5e1b265",
+        "amount": "9800000",
+        "role": 1,
+        "verdict": 1,
+        "confidenceBps": 9600,
+        "evidenceHash": "0xe47e84ab66010ad2507e08a68584e20e200579e05a8def1cece5dd2774b07f9c",
+        "agentId": 2,
+        "expiry": 1791988525,
+        "nonce": "1791984926548000021"
+      },
+      "signature": "0xc840508c0f7a60362db3b752fcd8b397140b75aec3c23775e15987f6e0a8062915e59c6f0756bd95a1969f1e8cf549228a0fbb32f5aa037493ee0249cde625e41c"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0xbd7337797bb5c64e018cfaec126670f4997674915935ad59c47bb19a55b94a75",
+        "payee": "0x2fa7b87a71b2fba7fe216921e06c34bfe5e1b265",
+        "amount": "9800000",
+        "role": 2,
+        "verdict": 1,
+        "confidenceBps": 8500,
+        "evidenceHash": "0x735cee24364c6fd2239d9b792374377e2d37fcfd4f5d3006e078569846a224d3",
+        "agentId": 3,
+        "expiry": 1791988525,
+        "nonce": "1791984927193000022"
+      },
+      "signature": "0xd0b76fdcb0d8700ae3b25bdda98aa13909100fe4e86f07f383757f5a8f36950c21489c6b27558454e00fbd7d537dd631324d11c5230012c9c0b35f198f7cfc031b"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0xbd7337797bb5c64e018cfaec126670f4997674915935ad59c47bb19a55b94a75",
+        "payee": "0x2fa7b87a71b2fba7fe216921e06c34bfe5e1b265",
+        "amount": "9800000",
+        "role": 3,
+        "verdict": 1,
+        "confidenceBps": 8500,
+        "evidenceHash": "0x90465d98003c6c70a7907a5182a806bb942f6ba58646a6517527d6917d644d48",
+        "agentId": 4,
+        "expiry": 1791988525,
+        "nonce": "1791984927822000023"
+      },
+      "signature": "0x93a4e07178ae3a38915b90dbf96ebca7db9256e3c237c932ee9b1cd9c88fdded38f3e39c82a3d373892ac5a6ce4bc73bf9168a5ce1da2fdc79c0ca5f76bc05d31c"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0xbd7337797bb5c64e018cfaec126670f4997674915935ad59c47bb19a55b94a75",
+        "payee": "0x2fa7b87a71b2fba7fe216921e06c34bfe5e1b265",
+        "amount": "9800000",
+        "role": 4,
+        "verdict": 1,
+        "confidenceBps": 9100,
+        "evidenceHash": "0x3fbcb4e9f6a6a97f0fb87960ef3244cb9a0ae05a344b632d425125f1bd3fcb9f",
+        "agentId": 5,
+        "expiry": 1791988525,
+        "nonce": "1791984928456000024"
+      },
+      "signature": "0x08a13eaba6d553cffa89fe55c31938fd64fceb0169b659c369ee9505112c9ad23c39bfbb7780af95ac72f977a973b6a9575344ecc81c13a08f8bd3094ce5ad961b"
+    }
+  ]
+}

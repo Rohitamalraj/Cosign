@@ -6,7 +6,7 @@ Cosign splits the AP job into eight single-purpose agents. Each one signs what i
 
 Built for the **Tameion Agents Hackathon**, RFB 2 (AP/AR automation), with elements of RFB 3 (vendor and agent reputation) and RFB 4 (limits enforced in a contract, not a prompt).
 
-> **Status: work in progress.** The policy contract, the agent workers and the Executor are built and tested together on a local chain (157 tests). The frontend shows the real agents' verdicts, but payments in it are simulated and the traction and reputation figures are mock. Nothing is deployed to Arc testnet yet, and there are no real users yet. See [What works today](#what-works-today).
+> **Status: work in progress.** The contracts are **deployed on Arc testnet** and the five demo cases have run on-chain end to end, with the agents signing and the Executor sending through **Circle Wallets** (158 tests, and a script that re-verifies the run from chain state). The web app still shows simulated payments and mock traction and reputation figures, and there are no real users yet. See [Live on Arc testnet](#live-on-arc-testnet) and [What works today](#what-works-today).
 
 ## Why
 
@@ -73,18 +73,53 @@ A read-only `evaluate()` returns the failing rule without spending anything, so 
 | Frontend: agent scores and bonds, traction figures | Still **mock** (the Auditor does not exist yet and there are no real users) |
 | Frontend -> Executor -> Arc | Not wired. The Executor and receipt replay exist and are tested, but nothing is deployed to Arc |
 | PDF and OCR ingestion | Not built. Agents read plain-text invoices today |
-| Deployment to Arc testnet | Not done. Needs RPC details and a funded test wallet |
+| Deployment to Arc testnet | **Done.** Registry and policy deployed against the real USDC; five demo cases run on-chain at testnet scale |
+| Circle Wallets | **Used.** The five agents' signing keys and the Executor wallet are Circle developer-controlled wallets on ARC-TESTNET |
+| Web app -> Arc | Not wired yet. The app still uses the local demo ledger. The on-chain run is a script (`executor/scripts/onchain-demo.ts`) |
 | Auditor, reconciliation, real receipts | Not built |
 | Real users and traction | None yet. Nothing on the site is real usage |
 
 Every number on the frontend (volume, invoices processed, days payable, scores) is invented mock data and is labelled as such in the UI.
+
+## Live on Arc testnet
+
+Chain `5042002`. Gas and settlement are real USDC (the token at `0x3600…0000`). Everything below is test money.
+
+| | |
+| --- | --- |
+| CosignPolicy | [`0x32781b9dd9aE9ef8C6a1b8a264d3Aca0aEcc72d7`](https://explorer.testnet.arc.io/address/0x32781b9dd9aE9ef8C6a1b8a264d3Aca0aEcc72d7) |
+| AgentRegistry | [`0x93dDf1BfC79B7B194FA1DA5f77d6F07Fa49AAb64`](https://explorer.testnet.arc.io/address/0x93dDf1BfC79B7B194FA1DA5f77d6F07Fa49AAb64) |
+| Case A: clean invoice, 1.25 USDC paid | [`0x6373…1f3f`](https://explorer.testnet.arc.io/tx/0x6373024565374eb2302cbd8be1c0f1ea6517d2b290dfa99553c53b051e5c1f3f) |
+| Case E: 9.80 USDC, above the 5 USDC limit, released with a human signature | [`0xf19f…b1d6`](https://explorer.testnet.arc.io/tx/0xf19f16ad66294d4e7a7995784212feaebb163757d249cb057fdfa123a949b1d6) |
+| Cases B, C, D | Held by the contract on rule 4. No transaction was sent, and the paid set is empty for them |
+
+What ran on-chain (all files are in [`deployments/`](./deployments)):
+
+1. `contracts/scripts/deploy-arc.js` deployed the contracts against the real USDC and set the registry's minimum bond.
+2. `executor/scripts/circle-setup.ts` created six Circle wallets (five agents and the Executor) and proved that a Circle-held key signs our EIP-712 attestation so that `ecrecover` returns the wallet address.
+3. `contracts/scripts/setup-arc.js` set the Executor, human approver and screener, allowlisted the vendors, registered the five agents with 1 USDC bonds, and funded the policy contract.
+4. `executor/scripts/onchain-demo.ts` ran the five cases: the agents sign through Circle, and the Executor submits `release` through Circle's contract-execution API. Receipts are in `deployments/receipts/` and replay offline.
+5. `node executor/scripts/verify-onchain.js` re-checks every result straight from the RPC, with no keys.
+
+**Where Circle's tools are used, and where they are not** (only what has a real job here):
+
+- **Arc and USDC**: the settlement chain and token, and USDC pays the gas.
+- **Circle Wallets** (developer-controlled, EOA): custody for the agents' signing keys and the Executor key, so no raw private key exists in our process. The contract still verifies signatures with plain `ecrecover`.
+- Not used: Paymaster (Arc gas is already USDC), CCTP and Gateway (Cosign settles on one chain), USYC (the policy contract holds the funds, so a yield position would need contract changes), EURC (the contract is single-token), Circle's Contracts platform (we deploy with Hardhat), and Agent Wallets, which are for agents that hold and spend funds under policies, while here the contract holds the funds and is the guardrail. These are roadmap items, not claims.
+
+Honest notes on this run:
+
+- **It is at testnet scale.** The faucet gives about 20 USDC, so every demo amount is the full-scale amount divided by 1,000 (1.25 USDC instead of 1,250) and the per-transaction limit is 5 USDC. See `agents/data-testnet/`.
+- **The first run lost a payment to a bot.** I had derived the demo vendor addresses from the well-known public test mnemonic, and a sweeper bot moved the 1.25 USDC out within minutes. The contract and Executor behaved correctly; the mistake was in the test data. The vendor wallets are now random keys kept in a gitignored file, and the old addresses are blocked on-chain through the contract's own challenge function (visible in the transaction history). Never use a public mnemonic for addresses that will receive funds, even on testnet.
+- The Executor wallet was funded from the deployer: Circle's faucet API returned "Forbidden" for our key.
 
 ## Repo layout
 
 ```
 contracts/   Solidity (Hardhat): CosignPolicy, AgentRegistry, MockUSDC, tests
 agents/      TypeScript agent workers: parse, check, sign EIP-712 attestations; demo ledger and invoices
-executor/    The only component that spends: submits releases idempotently, writes replayable receipts, HTTP API
+executor/    The only component that spends: submits releases idempotently (local key or Circle wallet), writes replayable receipts, HTTP API
+deployments/ Public addresses, the on-chain demo run and its receipts (no keys)
 frontend/    Next.js 14 + Tailwind + Framer Motion, mock data in src/lib/data.ts
 Cosign — Product Requirements Document.md / .pdf
 ```

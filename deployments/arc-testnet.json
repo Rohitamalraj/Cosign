@@ -1,0 +1,41 @@
+{
+  "network": "arc-testnet",
+  "chainId": 5042002,
+  "usdc": "0x3600000000000000000000000000000000000000",
+  "registry": "0x93dDf1BfC79B7B194FA1DA5f77d6F07Fa49AAb64",
+  "policy": "0x32781b9dd9aE9ef8C6a1b8a264d3Aca0aEcc72d7",
+  "policyVersion": "policy-v0.1.0",
+  "perTxLimitUsdc": 5,
+  "minBondUsdc": 1,
+  "deployer": "0xFAaA32C81457B1AEdd682deEd1c2890Cca6E9901",
+  "deployedAt": "2026-10-14T13:26:18.236Z",
+  "explorer": {
+    "registry": "https://explorer.testnet.arc.io/address/0x93dDf1BfC79B7B194FA1DA5f77d6F07Fa49AAb64",
+    "policy": "https://explorer.testnet.arc.io/address/0x32781b9dd9aE9ef8C6a1b8a264d3Aca0aEcc72d7"
+  },
+  "executor": "0x70d2a957393bae93d7b93c44e2eea417fec47818",
+  "approver": "0x4B15A4A4b0Bb94eEbB1037A6d2A3bB4b4664121b",
+  "screener": "0xFAaA32C81457B1AEdd682deEd1c2890Cca6E9901",
+  "agents": {
+    "READER": {
+      "agentId": 1,
+      "signer": "0x7908ae8e267e45c166f91f49673179dc49654a7f"
+    },
+    "VERIFIER": {
+      "agentId": 2,
+      "signer": "0x7bb0084c4cda78d56fe1fab68b232228dcace4a2"
+    },
+    "MATCHER": {
+      "agentId": 3,
+      "signer": "0x25d8edf74978950762f26706737257ba957b15f8"
+    },
+    "SENTINEL": {
+      "agentId": 4,
+      "signer": "0xa1896b6ef65b16042d2f7b062d0cd697ff6690c9"
+    },
+    "TREASURER": {
+      "agentId": 5,
+      "signer": "0xd50f88926030af30823cc370de05b327cbc865e5"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+INVOICE INV-1042
+From: Northwind Design Co. <billing@northwinddesign.example>
+To: Acme Studio
+Issued: 2026-10-13
+Due: 2026-10-20
+Agreement: SOW-22
+Currency: USDC
+Pay to wallet: 0x485cff12956519a597dcdb0cb0e1b37fe5b0246c
+
+Description | Qty | Rate | Amount
+Design hours - October sprint | 10 | 0.12375 | 1.2375
+
+Total: 1.2375 USDC
+Terms: Net 7

@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "invoiceHash": "0x0a2ecd536f1128e425e6aedced8169f935d32848824f36e45c0ae82b3206a916",
+  "payee": "0x485cff12956519a597dcdb0cb0e1b37fe5b0246c",
+  "amount": "1250000",
+  "category": "0x31ef7d0e4fc58341c23f689fb30fe779f821c5da9be1f82ead2c59ab0a4986db",
+  "policyVersion": "policy-v0.1.0",
+  "chainId": "5042002",
+  "policyAddress": "0x32781b9dd9aE9ef8C6a1b8a264d3Aca0aEcc72d7",
+  "txHash": "0x6373024565374eb2302cbd8be1c0f1ea6517d2b290dfa99553c53b051e5c1f3f",
+  "blockNumber": 67167115,
+  "releasedAt": "2026-10-14T13:35:10.000Z",
+  "humanSigned": false,
+  "humanSig": null,
+  "onChainReceiptHash": "0xbd1700a2a615872335834516ff8f449cc31145a2509a8efb217ad154afdd38e6",
+  "attestations": [
+    {
+      "attestation": {
+        "invoiceHash": "0x0a2ecd536f1128e425e6aedced8169f935d32848824f36e45c0ae82b3206a916",
+        "payee": "0x485cff12956519a597dcdb0cb0e1b37fe5b0246c",
+        "amount": "1250000",
+        "role": 0,
+        "verdict": 1,
+        "confidenceBps": 9800,
+        "evidenceHash": "0x9a903aa19098e015267c4e3dedc1476a102f1f1450aa324ab0ddd593cad5fed5",
+        "agentId": 1,
+        "expiry": 1791988502,
+        "nonce": "1791984902198000000"
+      },
+      "signature": "0x6a3db7a213238351368d6c0435685b40ec1b33672a6c762e9faff75ccf1e96807f0a665f7acd79b1ca09c39cfcbe09d4dd0d06548e3e0bc1c17a705f4aca55f21b"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0x0a2ecd536f1128e425e6aedced8169f935d32848824f36e45c0ae82b3206a916",
+        "payee": "0x485cff12956519a597dcdb0cb0e1b37fe5b0246c",
+        "amount": "1250000",
+        "role": 1,
+        "verdict": 1,
+        "confidenceBps": 9600,
+        "evidenceHash": "0x8c81c32de82e07526b700fd565ef74beddc194384878e584dac1486dc6e3bc23",
+        "agentId": 2,
+        "expiry": 1791988502,
+        "nonce": "1791984903520000001"
+      },
+      "signature": "0xe99bd0a20fd4256af708b7d105bd4529cd8d54c358205664def586df4749c1b434413ec4499a751f886f6f0c857c3fbe97e8950d3b40a89198eb7b7a8ba3f6dd1b"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0x0a2ecd536f1128e425e6aedced8169f935d32848824f36e45c0ae82b3206a916",
+        "payee": "0x485cff12956519a597dcdb0cb0e1b37fe5b0246c",
+        "amount": "1250000",
+        "role": 2,
+        "verdict": 1,
+        "confidenceBps": 8500,
+        "evidenceHash": "0xe94dbf43529e9d119c5b756a06b5a6f44b75f22c2e44f0fadf57bf2542df17d1",
+        "agentId": 3,
+        "expiry": 1791988502,
+        "nonce": "1791984904170000002"
+      },
+      "signature": "0xbca1d5a727ea195c6a46e223caf8d412a314baabfe6d8291af4a51e3d28c422a67ddc137f1739e54fe992eabae1b9c1a9383ad3a7dc92c1c5797ee100c7c2f7b1c"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0x0a2ecd536f1128e425e6aedced8169f935d32848824f36e45c0ae82b3206a916",
+        "payee": "0x485cff12956519a597dcdb0cb0e1b37fe5b0246c",
+        "amount": "1250000",
+        "role": 3,
+        "verdict": 1,
+        "confidenceBps": 8500,
+        "evidenceHash": "0x5ca4ea9dbaffd3a57947eccbacab92b7df0daa7d85c51fc971e9061b9f83c739",
+        "agentId": 4,
+        "expiry": 1791988502,
+        "nonce": "1791984904815000003"
+      },
+      "signature": "0xd90c071cd2374250d83c68e0af72071d7874d1c3a058adccf73015b1a43ed91d038895a202c148266e421e41ebbb045641bfff94070aa2ca5f5d30a8c7d4774f1c"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0x0a2ecd536f1128e425e6aedced8169f935d32848824f36e45c0ae82b3206a916",
+        "payee": "0x485cff12956519a597dcdb0cb0e1b37fe5b0246c",
+        "amount": "1250000",
+        "role": 4,
+        "verdict": 1,
+        "confidenceBps": 9100,
+        "evidenceHash": "0xa7630f4ec7019509c672c5b4a1fbbebf9b16263b06f643d463c7fe611f330ffb",
+        "agentId": 5,
+        "expiry": 1791988502,
+        "nonce": "1791984905494000004"
+      },
+      "signature": "0x7c8b600068ee7e2581941e85c91cd33867792855d09f1464332721e55a20b32b752b2fc49d92b9f9b0557b902f0daa8dda583904cd8d6ee387011a302cb251231c"
+    }
+  ]
+}

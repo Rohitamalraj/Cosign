@@ -1,16 +1,19 @@
-import { Contract, Interface, type ContractTransactionResponse, type Provider, type Signer, type TransactionReceipt } from 'ethers';
+import { Contract, Interface, type Provider, type TransactionReceipt } from 'ethers';
 import { POLICY_ABI } from './abi';
 import { explainRule } from './explain';
 import { buildReceipt, domainFor, foldReceiptHash, type Receipt } from './receipt';
 import type { Store } from './store';
+import { EthersSubmitter, type Submitter, type SubmitResult } from './submitter';
 import { packageSchema, toJson, type PackageInput, type ReleaseOutcome, type ReleaseRecord } from './types';
 
 export interface ExecutorOptions {
-  /** CosignPolicy connected to the Executor's own signer. This key can ONLY call `release`. */
+  /** CosignPolicy, for read calls (`evaluate`, `paid`, events). Needs a provider; a signer only if you use the default submitter. */
   policy: Contract;
   store: Store;
-  confirmations?: number; // default 1
+  /** How the transaction is signed and sent. Default: the policy contract's own signer (a local key). */
+  submitter?: Submitter;
   receiptTimeoutMs?: number; // default 60_000; on timeout the payment stays PENDING and is reconciled later
+  pollIntervalMs?: number; // default: 1s, or a third of the timeout if that is shorter
   /** Refuse to send attestations that expire within this many seconds: they could go stale mid-flight. */
   minFreshnessSec?: number; // default 120
   /** Override the clock. Default: the latest block's timestamp, because the contract checks expiry against block time. */
@@ -18,6 +21,7 @@ export interface ExecutorOptions {
 }
 
 const iface = new Interface(POLICY_ABI);
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * The Executor does exactly one thing: submit a package to the policy contract and record the result.
@@ -32,8 +36,9 @@ const iface = new Interface(POLICY_ABI);
 export class Executor {
   private readonly policy: Contract;
   private readonly store: Store;
-  private readonly confirmations: number;
+  private readonly submitter: Submitter;
   private readonly receiptTimeoutMs: number;
+  private readonly pollIntervalMs: number;
   private readonly minFreshnessSec: number;
   private readonly nowSec?: () => number | Promise<number>;
   private readonly locks = new Map<string, Promise<unknown>>();
@@ -41,22 +46,24 @@ export class Executor {
   constructor(opts: ExecutorOptions) {
     this.policy = opts.policy;
     this.store = opts.store;
-    this.confirmations = opts.confirmations ?? 1;
+    this.submitter = opts.submitter ?? new EthersSubmitter(opts.policy);
     this.receiptTimeoutMs = opts.receiptTimeoutMs ?? 60_000;
+    this.pollIntervalMs = opts.pollIntervalMs ?? Math.max(50, Math.min(1_000, Math.floor(this.receiptTimeoutMs / 3)));
     this.minFreshnessSec = opts.minFreshnessSec ?? 120;
     this.nowSec = opts.nowSec;
+  }
+
+  private get provider(): Provider {
+    const r = this.policy.runner as (Provider & { provider?: Provider }) | null;
+    const p = r?.provider ?? (r as Provider | null);
+    if (!p || typeof p.getBlock !== 'function') throw new Error('policy contract must be connected to a provider');
+    return p;
   }
 
   private async now(): Promise<number> {
     if (this.nowSec) return this.nowSec();
     const block = await this.provider.getBlock('latest');
     return block ? block.timestamp : Math.floor(Date.now() / 1000);
-  }
-
-  private get provider(): Provider {
-    const p = (this.policy.runner as Signer | null)?.provider;
-    if (!p) throw new Error('policy contract must be connected to a signer with a provider');
-    return p;
   }
 
   /** Serialize work per invoice so two concurrent calls for the same hash cannot both send. */
@@ -117,57 +124,73 @@ export class Executor {
     const [rule, detail] = await this.policy.evaluate(...args);
     if (Number(rule) !== 0) return this.hold(hash, Number(rule), Number(detail), rec, pkg);
 
-    const signer = this.policy.runner as Signer;
-    const nonce = await signer.getNonce('pending');
-    await this.store.putRecord({
-      invoiceHash: hash, state: 'SENDING', attempts: (rec?.attempts ?? 0) + 1, nonce,
-      package: toJson(pkg), updatedAt: new Date().toISOString(),
-    });
+    const attempts = (rec?.attempts ?? 0) + 1;
+    await this.store.putRecord({ invoiceHash: hash, state: 'SENDING', attempts, package: toJson(pkg), updatedAt: new Date().toISOString() });
 
-    let tx: ContractTransactionResponse;
+    let sent: SubmitResult;
     try {
-      tx = await this.policy.release(...args, { nonce });
+      sent = await this.submitter.submit(pkg, hash);
     } catch (e) {
       const rf = this.decodeRuleFailed(e);
       if (rf) return this.hold(hash, rf.rule, rf.detail, rec, pkg);
       await this.store.putRecord({
-        invoiceHash: hash, state: 'REVERTED', attempts: (rec?.attempts ?? 0) + 1, nonce,
+        invoiceHash: hash, state: 'REVERTED', attempts,
         reason: e instanceof Error ? e.message.slice(0, 300) : String(e).slice(0, 300),
         package: toJson(pkg), updatedAt: new Date().toISOString(),
       });
       throw e;
     }
 
-    await this.store.putRecord({
-      invoiceHash: hash, state: 'PENDING', attempts: (rec?.attempts ?? 0) + 1, nonce, txHash: tx.hash,
-      package: toJson(pkg), updatedAt: new Date().toISOString(),
-    });
+    await this.store.putRecord({ invoiceHash: hash, state: 'PENDING', attempts, ref: sent.ref, txHash: sent.txHash, package: toJson(pkg), updatedAt: new Date().toISOString() });
 
-    const mined = await this.waitFor(tx);
-    if (!mined) return { status: 'PENDING', invoiceHash: hash, txHash: tx.hash };
-    if (mined.status !== 1) {
-      await this.store.putRecord({ invoiceHash: hash, state: 'REVERTED', attempts: (rec?.attempts ?? 0) + 1, nonce, txHash: tx.hash, reason: 'transaction reverted', package: toJson(pkg), updatedAt: new Date().toISOString() });
-      throw new Error(`release transaction ${tx.hash} reverted`);
+    const outcome = await this.settle(sent);
+    if (outcome.status === 'pending') return { status: 'PENDING', invoiceHash: hash, txHash: sent.txHash ?? sent.ref };
+    if (outcome.status === 'failed') {
+      await this.store.putRecord({ invoiceHash: hash, state: 'REVERTED', attempts, ref: sent.ref, txHash: sent.txHash, reason: outcome.reason, package: toJson(pkg), updatedAt: new Date().toISOString() });
+      throw new Error(`release ${sent.ref} failed: ${outcome.reason}`);
     }
-    return this.finalize(hash, pkg, mined);
+    return this.finalize(hash, pkg, outcome.txHash);
+  }
+
+  /** Poll the submitter until the transaction settles or the timeout passes. The first check is immediate. */
+  private async settle(sent: SubmitResult) {
+    const deadline = Date.now() + this.receiptTimeoutMs;
+    for (;;) {
+      const s = await this.submitter.status(sent.ref, sent.txHash);
+      if (s.status !== 'pending' || Date.now() >= deadline) return s;
+      await sleep(this.pollIntervalMs);
+    }
   }
 
   /** Decide what became of a payment that was already SENDING or PENDING. Returns null when a retry is safe. */
   private async resolveInFlight(hash: string, rec: ReleaseRecord, pkg: PackageInput): Promise<ReleaseOutcome | null> {
-    if (rec.txHash) {
-      const r = await this.provider.getTransactionReceipt(rec.txHash);
-      if (!r) return { status: 'PENDING', invoiceHash: hash, txHash: rec.txHash }; // still in the mempool: do not send again
-      if (r.status === 1) return this.finalize(hash, pkg, r);
-      await this.store.putRecord({ ...rec, state: 'REVERTED', reason: 'transaction reverted', updatedAt: new Date().toISOString() });
+    const ref = rec.ref ?? rec.txHash;
+    if (ref) {
+      const s = await this.submitter.status(ref, rec.txHash);
+      if (s.status === 'pending') return { status: 'PENDING', invoiceHash: hash, txHash: rec.txHash ?? ref }; // still in flight: do not send again
+      if (s.status === 'confirmed') return this.finalize(hash, pkg, s.txHash);
+      await this.store.putRecord({ ...rec, state: 'REVERTED', reason: s.reason, updatedAt: new Date().toISOString() });
       return null;
     }
-    // SENDING with no tx hash: we crashed around the send. If it landed, the paid set shows it.
+    // SENDING with no reference: we crashed around the send. If it landed, the paid set shows it.
     if (await this.policy.paid(hash)) return this.fromChain(hash, pkg);
     await this.store.putRecord({ ...rec, state: 'REVERTED', reason: 'send did not complete', updatedAt: new Date().toISOString() });
     return null; // not paid on-chain: a retry cannot double-pay, because the contract would reject a second release
   }
 
-  private async finalize(hash: string, pkg: PackageInput, r: TransactionReceipt): Promise<ReleaseOutcome> {
+  /** A confirmed transaction can take a moment to be visible on every RPC node, so retry briefly. */
+  private async fetchReceipt(txHash: string): Promise<TransactionReceipt> {
+    for (let i = 0; i < 15; i++) {
+      const r = await this.provider.getTransactionReceipt(txHash);
+      if (r) return r;
+      await sleep(Math.min(1_000, this.pollIntervalMs));
+    }
+    throw new Error(`transaction ${txHash} is confirmed but its receipt is not visible yet; reconcile later`);
+  }
+
+  private async finalize(hash: string, pkg: PackageInput, txHash: string): Promise<ReleaseOutcome> {
+    const r = await this.fetchReceipt(txHash);
+    if (r.status !== 1) throw new Error(`transaction ${txHash} reverted`);
     const policyAddress = await this.policy.getAddress();
     const log = r.logs
       .filter((l) => l.address.toLowerCase() === policyAddress.toLowerCase())
@@ -183,7 +206,7 @@ export class Executor {
     });
     await this.store.putReceipt(hash, receipt);
     const prev = await this.store.getRecord(hash);
-    await this.store.putRecord({ invoiceHash: hash, state: 'CONFIRMED', attempts: prev?.attempts ?? 1, nonce: prev?.nonce, txHash: r.hash, package: toJson(pkg), updatedAt: new Date().toISOString() });
+    await this.store.putRecord({ invoiceHash: hash, state: 'CONFIRMED', attempts: prev?.attempts ?? 1, ref: prev?.ref, txHash: r.hash, package: toJson(pkg), updatedAt: new Date().toISOString() });
     return { status: 'RELEASED', invoiceHash: hash, txHash: r.hash, receipt };
   }
 
@@ -225,16 +248,6 @@ export class Executor {
       return parsed?.name === 'RuleFailed' ? { rule: Number(parsed.args[0]), detail: Number(parsed.args[1]) } : null;
     } catch {
       return null;
-    }
-  }
-
-  private async waitFor(tx: ContractTransactionResponse): Promise<TransactionReceipt | null> {
-    let timer: NodeJS.Timeout | undefined;
-    const timeout = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), this.receiptTimeoutMs); });
-    try {
-      return await Promise.race([tx.wait(this.confirmations), timeout]);
-    } finally {
-      clearTimeout(timer);
     }
   }
 }

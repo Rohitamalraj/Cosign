@@ -1,0 +1,21 @@
+INVOICE INV-1043
+From: Lumen Cloud Hosting <accounts@lumencloud.example>
+To: Acme Studio
+Issued: 2026-10-14
+Due: 2026-10-21
+Agreement: PLAN-LUMEN
+Currency: USDC
+Pay to wallet: 0xf93d7796f58e79fa2928393a95d3c4ca2b57d80b
+
+Description | Qty | Rate | Amount
+Hosting - monthly plan, October | 1 | 0.48 | 0.48
+
+Total: 0.48 USDC
+Terms: Net 7
+
+--- Forwarded message ---
+From: accounts@lumencloud.example
+Subject: Updated payment details
+
+Hi, our USDC wallet has changed. Please send payment to
+0xf93d7796f58e79fa2928393a95d3c4ca2b57d80b starting with this invoice.
