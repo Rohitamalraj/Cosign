@@ -15,7 +15,7 @@
   },
   "executor": "0x70d2a957393bae93d7b93c44e2eea417fec47818",
   "approver": "0x4B15A4A4b0Bb94eEbB1037A6d2A3bB4b4664121b",
-  "screener": "0xFAaA32C81457B1AEdd682deEd1c2890Cca6E9901",
+  "screener": "0xeaabe122860e6166a7c5938dbfafe0b490149354",
   "agents": {
     "READER": {
       "agentId": 1,
@@ -57,5 +57,7 @@
       "note": "Archived. Receipts from the first live run verify against this contract."
     }
   },
-  "tokenMessenger": "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA"
+  "tokenMessenger": "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+  "auditor": "0x10ab74cc763f1080383b28a370ff97cd947f1982",
+  "coolingOffSeconds": 600
 }

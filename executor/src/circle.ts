@@ -96,3 +96,34 @@ export class CircleSubmitter implements Submitter {
     return { status: 'pending' };
   }
 }
+
+/**
+ * Call any contract function through a Circle wallet and wait for it to confirm. Used by the web app's operating
+ * wallets (the payee screener and the Auditor), each of which can only do what the contract lets its role do.
+ * `idempotencyKey` makes a retry return the same Circle transaction instead of sending a second one.
+ */
+export async function circleCall(
+  client: Client,
+  args: { walletId: string; contractAddress: string; signature: string; params: unknown[]; idempotencyKey: string; timeoutMs?: number; pollMs?: number },
+): Promise<{ txHash: string }> {
+  const res = await client.createContractExecutionTransaction({
+    walletId: args.walletId,
+    contractAddress: args.contractAddress,
+    abiFunctionSignature: args.signature,
+    abiParameters: plain(args.params) as unknown as never,
+    fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+    refId: args.idempotencyKey.slice(0, 80),
+    idempotencyKey: idempotencyUuid(args.idempotencyKey),
+  } as never);
+  const id = (res.data as { id?: string } | undefined)?.id;
+  if (!id) throw new Error('Circle returned no transaction id');
+  const deadline = Date.now() + (args.timeoutMs ?? 120_000);
+  for (;;) {
+    const r = await client.getTransaction({ id });
+    const tx = r.data?.transaction as { state?: string; txHash?: string; errorReason?: string } | undefined;
+    if ((tx?.state === 'CONFIRMED' || tx?.state === 'COMPLETE') && tx.txHash) return { txHash: tx.txHash };
+    if (tx && (tx.state === 'FAILED' || tx.state === 'DENIED' || tx.state === 'CANCELLED')) throw new Error(`transaction ${tx.state}${tx.errorReason ? `: ${tx.errorReason}` : ''}`);
+    if (Date.now() >= deadline) throw new Error(`transaction ${id} not confirmed within ${Math.round((args.timeoutMs ?? 120_000) / 1000)}s`);
+    await new Promise((r2) => setTimeout(r2, args.pollMs ?? 2_000));
+  }
+}

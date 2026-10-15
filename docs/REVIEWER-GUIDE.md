@@ -20,7 +20,7 @@ Five independent agents each **sign** a verdict about an invoice, and an on-chai
 | Open **/onchain** and press **Re-verify now** | The page reads Arc testnet (and Base Sepolia for the cross-chain leg) and re-checks every payment, receipt and agent score. No keys |
 | Point any MCP client at **/mcp** | `check_invoice`, `demo_invoices`, `onchain_proof` |
 
-The web inbox **simulates** payment (a demo ledger). The on-chain path is a script: `executor/scripts/onchain-demo.ts`.
+Paying from the app is real: **Pay** sends a transaction through the Executor and Circle (test USDC on Arc testnet), and above the limit the approver wallet signs in MetaMask. Sign in with a wallet to try it; a guest wallet can run and read invoices but only an operator can pay.
 
 ## 3. Re-verify the chain yourself
 

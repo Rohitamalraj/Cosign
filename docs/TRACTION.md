@@ -48,8 +48,8 @@ Compute the baseline now. Compute the "after" only from real invoices actually r
 ## 5. Running their invoices (what works today, honestly)
 
 - The app reads **pasted text and text-based PDFs** (upload in `/invoices`). **Scanned PDFs need OCR, which is not built**: for those, paste the text. The parser reads a labelled layout (`From:`, `Due:`, a `Description | Qty | Rate | Amount` table); a partner's own layout will often not match. With a free model configured (`READER_LLM`), the model proposes the missing fields and every proposed value must appear verbatim in the document, otherwise it is rejected and the invoice is held. Without a model, an off-template invoice is held for a human.
-- The agents check an invoice against a **ledger** (registered vendors, agreements or POs, payment history). Today that ledger is a JSON file, with no UI. To run a partner's invoices you add their vendors and agreements to a ledger file (`agents/data/ledger.json` is the format) with them on a call. This takes about 10 minutes per partner.
-- In the web app (`/invoices`) payments are **simulated**. The real on-chain path is the script in `executor/scripts/onchain-demo.ts`, which pays testnet USDC through Circle wallets. For a partner's real invoices you can run either; say which one you used.
+- The agents check an invoice against a **ledger** (registered vendors, agreements or POs, payment history), which now lives in a database and has a screen: **Vendors**. Add a partner's vendors there with their payment wallet, category and the agreed rate (this is a real on-chain allowlist transaction, followed by the cooling-off). The Matcher can only check rates for vendors that have an agreement, so enter one. This takes a few minutes with the partner on a call.
+- In the web app (`/invoices`) a payment is a real transaction of testnet USDC through the Executor and Circle wallets. A partner signs in with their wallet (as a guest, to check their own invoices) or you run their invoices as an operator. Say which you did. Add their vendors on `/vendors` first (a real on-chain allowlist, then the cooling-off).
 
 ## 6. Recording it
 

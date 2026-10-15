@@ -30,7 +30,9 @@ export async function readJson(req: Request, maxBytes = 64 * 1024): Promise<unkn
 
 export function fail(e: unknown) {
   const status = (e as { status?: number })?.status;
-  if (status === 400 || status === 413) return NextResponse.json({ error: (e as Error).message }, { status });
+  // Errors the app raises on purpose carry an HTTP status and a message meant for the person using it.
+  if (status === 202) return NextResponse.json({ pending: true, message: (e as Error).message }, { status });
+  if (typeof status === 'number' && status >= 400 && status < 600 && status !== 500) return NextResponse.json({ error: (e as Error).message }, { status });
   console.error('api error:', e instanceof Error ? e.message : e);
   return NextResponse.json({ error: 'internal error' }, { status: 500 });
 }

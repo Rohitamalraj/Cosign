@@ -1,12 +1,30 @@
-# Render blueprint: a free Docker web service. Set COSIGN_AGENT_MNEMONIC in the dashboard (it is not stored in git).
+# Render blueprint: a Docker web service plus a Postgres database.
+# Secrets are NOT in git: Render asks for each `sync: false` value in its dashboard (see docs/DEPLOY.md for what to paste).
+databases:
+  - name: cosign-db
+    plan: free
+    databaseName: cosign
+
 services:
   - type: web
     name: cosign
     runtime: docker
     plan: free
-    healthCheckPath: /api/samples
+    healthCheckPath: /api/status
     envVars:
-      - key: COSIGN_AGENT_MNEMONIC
-        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cosign-db
+          property: connectionString
       - key: ARC_TESTNET_RPC_URL
         value: https://rpc.testnet.arc.io
+      - key: CIRCLE_API_KEY
+        sync: false
+      - key: CIRCLE_ENTITY_SECRET
+        sync: false
+      - key: COSIGN_CIRCLE_WALLETS
+        sync: false
+      - key: COSIGN_RELAYER_PRIVATE_KEY
+        sync: false
+      - key: COSIGN_ADMIN_ADDRESSES
+        sync: false

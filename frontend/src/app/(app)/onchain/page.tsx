@@ -47,8 +47,8 @@ export default function OnChain() {
           </Card>
 
           <Card className="mb-4">
-            <h2 className="h2 mb-1">The cases, as run on-chain</h2>
-            <p className="mb-4 text-[13px] text-ink/60">The agents signed through Circle wallets; the Executor sent through a Circle wallet. Held cases sent no transaction.</p>
+            <h2 className="h2 mb-1">Reference run: seven example invoices, as run on-chain</h2>
+            <p className="mb-4 text-[13px] text-ink/60">We wrote these seven invoices (including the attacks) and ran them through the system once, so there is a fixed record to re-verify. The agents signed through Circle wallets and the Executor sent through a Circle wallet. Held cases sent no transaction. Payments made through the app by real users are on the dashboard and in Receipts.</p>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[820px] text-left">
                 <thead>
@@ -167,7 +167,7 @@ export default function OnChain() {
 
           {view.auditorEvents && view.auditorEvents.length > 0 && (
             <Card>
-              <h2 className="h2 mb-1">Auditor events</h2>
+              <h2 className="h2 mb-1">Auditor events from the reference run</h2>
               <p className="mb-4 text-[13px] text-ink/60">{view.auditorNote}</p>
               <ul className="divide-y divide-ink/10">
                 {view.auditorEvents.map((e) => (

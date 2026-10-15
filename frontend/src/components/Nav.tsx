@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import { useStore } from '@/lib/store';
 
 const links = [
@@ -9,6 +10,7 @@ const links = [
   { href: '/invoices', label: 'Invoices' },
   { href: '/escalations', label: 'Escalations' },
   { href: '/receipts', label: 'Receipts' },
+  { href: '/vendors', label: 'Vendors' },
   { href: '/agents', label: 'Agents' },
   { href: '/onchain', label: 'On-chain' },
   { href: '/lab', label: 'Decision Lab' },
@@ -17,7 +19,9 @@ const links = [
 
 export function Nav() {
   const path = usePathname() ?? '/';
-  const { invoices } = useStore();
+  const { invoices, session, status, signIn, signOut } = useStore();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const open = invoices.filter((i) => i.status === 'escalated' || i.status === 'held').length;
 
   return (
@@ -49,10 +53,27 @@ export function Nav() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <span className="hidden items-center gap-1.5 border border-citrine/60 bg-sand/30 px-2 py-1 font-mono text-[11px] uppercase tracking-[0.08em] sm:inline-flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-gold" /> Live agents, demo ledger
-          </span>
-          <Link href="/demo" className="btn-solid">Run the demo</Link>
+          {status && (
+            <span title={status.note ?? `${status.network}. Payments are real transactions of test USDC.`} className={`hidden items-center gap-1.5 border px-2 py-1 font-mono text-[11px] uppercase tracking-[0.08em] sm:inline-flex ${status.mode === 'live' ? 'border-jade/70 bg-jade/15 text-[#2c6b57]' : 'border-citrine/60 bg-sand/30'}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${status.mode === 'live' ? 'bg-jade' : 'bg-gold'}`} /> {status.mode === 'live' ? 'Live · Arc testnet' : 'Preview · no chain'}
+            </span>
+          )}
+          {session ? (
+            <button type="button" className="btn-ghost !px-3 !py-2 text-[13px]" onClick={() => void signOut()} title="Sign out">
+              <span className="font-mono">{session.address.slice(0, 6)}…{session.address.slice(-4)}</span> · {session.role}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn-solid"
+              disabled={busy}
+              title={err ?? 'Sign in with your wallet. It signs a message only; nothing is sent.'}
+              onClick={async () => { setBusy(true); setErr(null); try { await signIn(); } catch (e) { setErr(e instanceof Error ? e.message : 'sign-in failed'); } finally { setBusy(false); } }}
+            >
+              {busy ? 'Waiting for wallet…' : 'Sign in with wallet'}
+            </button>
+          )}
+          {err && <span role="alert" className="hidden max-w-[220px] truncate text-[12px] text-[#8e2e2a] lg:inline" title={err}>{err}</span>}
         </div>
       </div>
 

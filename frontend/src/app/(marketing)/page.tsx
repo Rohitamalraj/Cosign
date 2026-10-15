@@ -34,7 +34,7 @@ const faqs = [
   ['Can an agent be tricked by text in an invoice?', 'Invoice text is treated as untrusted data. The Reader extracts fields and never follows instructions found in documents, and only contract-released payments are executed.'],
   ['Do signatures prove an agent was right?', 'No. They prove who concluded what. Correctness comes from independence between agents, the Auditor’s later ground truth and bonded reputation. The contract guarantees the required checks happened and agreed.'],
   ['What happens when agents disagree?', 'Any FAIL or ESCALATE holds the payment and routes it to a human. The system never averages a doubt away and never pays on timeout.'],
-  ['Is this using real money?', 'No. It runs on Arc testnet with test USDC. The On-chain page lets you re-verify the real run from the chain. The invoice inbox uses a demo ledger, so payments there are simulated, and the traction counts only real design partners (none yet).'],
+  ['Is this using real money?', 'Not yet. It runs on Arc testnet with test USDC, which has no value, but everything else is real: the agents sign through Circle-held keys, the real contract decides, and a payment from the app is a real transaction you can open on the explorer. The dashboard counts only what actually happened, and traction counts only real design partners (none yet).'],
 ];
 
 function Section({ id, children, className = '' }: { id?: string; children: React.ReactNode; className?: string }) {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { PdfError } from '../../../../../../agents/src/pdf';
 import { submitPdf } from '@/server/engine';
 import { fail, rateLimited, tooMany } from '@/server/guard';
+import { assertSameOrigin, requireSession, sessionFrom } from '@/server/http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,8 @@ const MAX_BYTES = 5 * 1024 * 1024;
 export async function POST(req: Request) {
   if (rateLimited(req, 10)) return tooMany();
   try {
+    assertSameOrigin(req);
+    const session = requireSession(await sessionFrom(req));
     if (!(req.headers.get('content-type') ?? '').startsWith('application/pdf')) {
       return NextResponse.json({ error: 'send the PDF with Content-Type: application/pdf' }, { status: 415 });
     }
@@ -19,7 +22,7 @@ export async function POST(req: Request) {
     if (declared > MAX_BYTES) return NextResponse.json({ error: 'The PDF is larger than 5 MB.' }, { status: 413 });
     const bytes = new Uint8Array(await req.arrayBuffer());
     if (bytes.length > MAX_BYTES) return NextResponse.json({ error: 'The PDF is larger than 5 MB.' }, { status: 413 });
-    return NextResponse.json({ invoice: await submitPdf(bytes) });
+    return NextResponse.json({ invoice: await submitPdf(bytes, session) });
   } catch (e) {
     if (e instanceof PdfError) {
       if (e.cause) console.error('pdf error cause:', e.cause instanceof Error ? `${e.cause.name}: ${e.cause.message}` : e.cause);

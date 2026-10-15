@@ -1,6 +1,6 @@
-# Cosign web app (Next.js) with the agents, executor verifier and deployment records it reads at runtime.
+# Cosign web app (Next.js) with the agents, the Executor library and the deployment records it reads at runtime.
 # Build:  docker build -t cosign .
-# Run:    docker run -p 3000:3000 -e COSIGN_AGENT_MNEMONIC="<fresh 12 words>" cosign
+# Run:    see docs/DEPLOY.md for the environment (a Postgres URL, Circle credentials, your admin wallet).
 FROM node:22-slim AS build
 WORKDIR /app
 COPY agents/package*.json agents/
@@ -15,10 +15,10 @@ RUN cd frontend && npx next build
 
 FROM node:22-slim
 WORKDIR /app
-ENV NODE_ENV=production PORT=3000 COSIGN_STATE_FILE=/tmp/cosign-state.json COSIGN_DEMO_NOW=2026-10-15T12:00:00Z
+ENV NODE_ENV=production PORT=3000 COSIGN_ROOT=/app
 COPY --from=build /app /app
-# Never bake secrets into the image. COSIGN_AGENT_MNEMONIC is required at run time (the app refuses to start without it).
-# These keys only SIGN demo attestations; they hold no funds. Use a fresh phrase, never a public one.
+# No secrets are baked into the image. At run time the server needs DATABASE_URL, CIRCLE_API_KEY, CIRCLE_ENTITY_SECRET,
+# COSIGN_CIRCLE_WALLETS, COSIGN_RELAYER_PRIVATE_KEY and COSIGN_ADMIN_ADDRESSES. Without them it refuses to run in production.
 USER node
 WORKDIR /app/frontend
 EXPOSE 3000

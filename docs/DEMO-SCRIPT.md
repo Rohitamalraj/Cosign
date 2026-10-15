@@ -7,7 +7,7 @@ Record screen plus voice. Everything below can be shown from the live app and th
 1. `cd frontend && npm run build && npm run start`, then open http://localhost:3000.
 2. Open these tabs in order: `/` (landing), `/onchain`, `/invoices`, the explorer transaction links from the README (cases A, E and F, plus the Base Sepolia mint), and a terminal in `executor/`.
 3. In the terminal run `npx tsx scripts/verify-onchain.ts` once so you know it prints `ALL VERIFIED`.
-4. Click "Reset demo" on `/invoices` so the demo cases are in their starting state.
+4. Sign in with your wallet and have the vendors imported (`cd frontend && npx tsx scripts/seed-example-vendors.ts`). Fund the policy contract so it can pay (see docs/DEPLOY.md). Do a dry run: run example A on `/demo`.
 5. Decide your traction line (section 6) before you speak it. Do not read a number you cannot back.
 6. 1080p, close notifications, zoom the browser to about 125% so text is readable.
 
@@ -54,7 +54,7 @@ Let the green "Verified from chain state" banner appear. Scroll to the reputatio
 
 ## Do not say
 
-- That the web app's "Release (simulated)" moves real money. It records to a demo ledger.
+- That the money is real. The payments in the app are real transactions, but of test USDC with no value, on Arc testnet.
 - "Production-ready", "audited", or that Cosign is "secure". Say what the contract checks.
 - Any traction number that is not in `frontend/data/traction.json`.
 - That USYC is live. The treasury contract is built and tested against a mock; Circle must entitle it first. Paymaster, Gateway and EURC are not used.
@@ -62,5 +62,5 @@ Let the green "Verified from chain state" banner appear. Scroll to the reputatio
 ## If something goes wrong on camera
 
 - `/onchain` shows "could not reach the Arc RPC": the recorded run is still shown; press "Re-verify now" again, or run `npx tsx scripts/verify-onchain.ts` in the terminal instead.
-- A case looks different from the script: click "Reset demo" on `/invoices`.
+- A case looks different from the script: check the vendor ledger on `/vendors` (an example needs its vendor registered and past the cooling-off), and that the policy wallet has USDC (`/api/status`).
 - Over 3:00: cut the case C section to one sentence. Keep the verify section; it is the strongest proof.

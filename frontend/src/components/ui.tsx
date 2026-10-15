@@ -41,11 +41,6 @@ export function StatusPill({ s }: { s: Status }) {
   return <span className={`inline-block border px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.06em] ${cls}`}>{label}</span>;
 }
 
-/** Marks a payment that exists only in the demo ledger: no transaction was sent to any chain. */
-export function SimTag() {
-  return <span className="ml-1.5 border border-citrine/60 bg-sand/30 px-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[#7a5a14]">simulated</span>;
-}
-
 export function RuleDot({ s }: { s: RuleState }) {
   const map: Record<RuleState, string> = { pass: 'bg-jade', fail: 'bg-[#b4443f]', wait: 'bg-citrine' };
   return <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${map[s]}`} aria-label={s} />;

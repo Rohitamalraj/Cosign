@@ -2,7 +2,7 @@
 
 export type Role = 'READER' | 'VERIFIER' | 'MATCHER' | 'SENTINEL' | 'TREASURER';
 export type Verdict = 'PASS' | 'FAIL' | 'ESCALATE';
-/** ready = all agents PASS and the contract would release; released = paid (simulated until the Executor is on Arc). */
+/** ready = all agents PASS and the contract would release; released = paid on-chain. */
 export type Status = 'released' | 'ready' | 'held' | 'escalated' | 'pending';
 export type RuleState = 'pass' | 'fail' | 'wait';
 
@@ -51,8 +51,12 @@ export interface Invoice {
   llm?: Partial<Record<Role, { model: string; used: boolean; error?: string }>>;
   decision?: 'READY' | 'NEEDS_HUMAN' | 'HOLD';
   flags?: string[];
-  /** True while payment is recorded in the demo ledger only; no chain transaction exists. */
-  simulated?: boolean;
+  /** The wallet that submitted this invoice. */
+  createdBy?: string;
+  /** Explorer link for the payment transaction, once paid. */
+  txUrl?: string;
+  /** Cross-chain payments: the mint on the destination chain. */
+  settlement?: { state: string; chain: string; mintTx: string | null; error: string | null };
   source?: string;
   processedAt?: string;
   vendor: string;
@@ -77,32 +81,22 @@ export function evalRules(inv: Invoice): RuleState[] {
 }
 
 
-// ---- Agents and reputation ----
+// ---- The roles (static descriptions only; scores and bonds are read live from the registry on Arc) ----
 
-/** Static roster used by the docs page for job descriptions. Scores, bonds and reputation are NOT here: they are read live from the registry on Arc. */
 export interface Agent {
   id: number;
   name: string;
   role: string;
   job: string;
-  model: string;
-  wallet: string;
-  score: number;
-  bond: number;
-  slashed: number;
-  verdicts: number;
-  correct: number;
-  trend: number[];
   canSpend: boolean;
 }
 
 export const agents: Agent[] = [
-  { id: 11, name: 'Reader', role: 'READER', job: 'Turn an invoice into structured data', model: 'Model A', wallet: '0x11aa…01', score: 91, bond: 250, slashed: 0, verdicts: 34, correct: 33, trend: [84, 86, 87, 89, 90, 91, 91], canSpend: false },
-  { id: 12, name: 'Verifier', role: 'VERIFIER', job: 'Confirm counterparty and destination wallet', model: 'Model A', wallet: '0x12bb…02', score: 88, bond: 500, slashed: 0, verdicts: 34, correct: 32, trend: [70, 74, 78, 82, 84, 86, 88], canSpend: false },
-  { id: 17, name: 'Matcher', role: 'MATCHER', job: 'Check invoice against contract and PO', model: 'Model B', wallet: '0x17cc…03', score: 84, bond: 500, slashed: 0, verdicts: 34, correct: 31, trend: [80, 81, 82, 83, 83, 84, 84], canSpend: false },
-  { id: 21, name: 'Sentinel', role: 'SENTINEL', job: 'Catch duplicates and anomalies', model: 'Model C', wallet: '0x21dd…04', score: 79, bond: 400, slashed: 100, verdicts: 34, correct: 30, trend: [82, 83, 85, 60, 66, 73, 79], canSpend: false },
-  { id: 26, name: 'Treasurer', role: 'TREASURER', job: 'Choose when to pay', model: 'Model B', wallet: '0x26ee…05', score: 76, bond: 300, slashed: 0, verdicts: 34, correct: 29, trend: [60, 64, 67, 70, 72, 74, 76], canSpend: false },
-  { id: 31, name: 'Executor', role: 'EXECUTOR', job: 'Send the payment the contract releases', model: 'No model', wallet: '0x31ff…06', score: 100, bond: 1000, slashed: 0, verdicts: 0, correct: 0, trend: [100, 100, 100, 100, 100, 100, 100], canSpend: true },
-  { id: 34, name: 'Collector', role: 'COLLECTOR', job: 'Chase receivables', model: 'Model A', wallet: '0x3400…07', score: 72, bond: 200, slashed: 0, verdicts: 0, correct: 0, trend: [55, 60, 63, 66, 69, 71, 72], canSpend: false },
-  { id: 38, name: 'Auditor', role: 'AUDITOR', job: 'Reconcile payments and score agents', model: 'Reads chain, not summaries', wallet: '0x3811…08', score: 95, bond: 500, slashed: 0, verdicts: 0, correct: 0, trend: [92, 93, 93, 94, 95, 95, 95], canSpend: false },
+  { id: 1, name: 'Reader', role: 'READER', job: 'Turn an invoice into structured data', canSpend: false },
+  { id: 2, name: 'Verifier', role: 'VERIFIER', job: 'Confirm counterparty, destination wallet and settlement chain', canSpend: false },
+  { id: 3, name: 'Matcher', role: 'MATCHER', job: 'Check the invoice against the contract or PO', canSpend: false },
+  { id: 4, name: 'Sentinel', role: 'SENTINEL', job: 'Catch duplicates, near-duplicates and anomalies', canSpend: false },
+  { id: 5, name: 'Treasurer', role: 'TREASURER', job: 'Choose when to pay', canSpend: false },
+  { id: 6, name: 'Executor', role: 'EXECUTOR', job: 'Send the payment the contract releases', canSpend: true },
+  { id: 7, name: 'Auditor', role: 'AUDITOR', job: 'Turn what really happened into reputation changes on-chain', canSpend: false },
 ];

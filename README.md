@@ -6,7 +6,7 @@ Cosign splits the AP job into eight single-purpose agents. Each one signs what i
 
 Built for the **Tameion Agents Hackathon**, RFB 2 (AP/AR automation), with elements of RFB 3 (vendor and agent reputation) and RFB 4 (limits enforced in a contract, not a prompt).
 
-> **Status: work in progress.** The contracts are **deployed on Arc testnet** (policy v0.2). All seven demo cases ran on-chain end to end. Agents sign through **Circle Wallets**, the Executor sends through Circle, and a vendor was paid **on another chain through CCTP** (USDC burned on Arc, minted on Base Sepolia, both checked from chain state). The Auditor has moved reputation and slashed a bond on-chain. 226 tests pass and CI runs them. **There are no real users yet**, and the invoice inbox in the web app pays from a simulated demo ledger. See [What works today](#what-works-today).
+> **Status: work in progress.** The contracts are **deployed on Arc testnet** (policy v0.2). All seven demo cases ran on-chain end to end. Agents sign through **Circle Wallets**, the Executor sends through Circle, and a vendor was paid **on another chain through CCTP** (USDC burned on Arc, minted on Base Sepolia, both checked from chain state). The Auditor has moved reputation and slashed a bond on-chain. The web app is now the real thing, not a simulation: you sign in with a wallet, invoices go through the live agents and the real contract, **Pay** sends a real transaction, an over-limit payment needs the approver's wallet to sign in MetaMask, vendors live in a real database and are allowlisted on-chain, and an operator's report of what really happened moves agent reputation on-chain. A live end-to-end test of all of that passes against Arc testnet. The only thing that is not real is the money (test USDC), and **there are no real users yet**. See [What works today](#what-works-today).
 
 **What changed since the first run (policy v0.1 to v0.2):** every attestation now binds the destination chain, so five agents sign *where* the money goes, not only who gets it. An address allowlisted on Arc is not allowed on another chain. The first run (cases A to E on v0.1) is kept in [`deployments/archive/v0.1`](./deployments/archive/v0.1) and is not shown in the live verifier, because the signing format changed.
 
@@ -24,12 +24,13 @@ You do not need to trust this README. Everything about the Arc run is re-checked
 | Real | Not real, or scaled |
 | --- | --- |
 | Contracts on Arc testnet, real USDC token, gas in USDC | **Test money only, at 1/1000 scale** (faucet limit) |
-| Agents sign through Circle-held keys; contract verifies with `ecrecover` | The five invoices are **scripted** by us, including the attacks |
-| Held cases moved nothing; paid cases are in the paid set | The Auditor's ground truth is scripted; the slash is a **seeded** stand-in |
+| Agents sign through Circle-held keys; contract verifies with `ecrecover` | The seven example invoices are **written by us**, including the attacks, and the reference run on `/onchain` is a one-off we ran |
+| Held cases moved nothing; paid cases are in the paid set | The Auditor's scores before the app existed came from a **scripted** run (one seeded miss). Scores now move only when a person reports an outcome |
 | 226 automated tests in CI, incl. agents -> contract end to end and randomized invariant tests | **No real users yet** (see `docs/TRACTION.md`) |
 | CCTP burn on Arc and mint on Base Sepolia, both re-checked from chain state | Base Sepolia is a testnet; one cross-chain payment of 0.75 USDC, scripted by us |
 | USYC treasury contract, tested | **USYC is not live**: Circle must entitle the contract first (ticket text in `docs/USYC-SUPPORT-TICKET.md`) |
-| Replayable receipts | The web inbox pays from a **simulated** demo ledger |
+| Replayable receipts, re-verified in the app when you open one | The USDC is **test money** with no value |
+| Wallet sign-in, database, live payment from the app, MetaMask approval, on-chain vendor allowlist, outcome reporting (`frontend/scripts/e2e-live.ts`, 20 live checks) | Vendors added with a 10-minute cooling-off here (the contract default is 48 hours) so a test can finish |
 
 ## Why
 
@@ -95,20 +96,22 @@ A read-only `evaluate()` returns the failing rule without spending anything, so 
 | **USYC treasury** | **Contract built, deployed and tested against a mock Teller.** Not live: Circle has to entitle the contract (support ticket). The Treasurer agent's invest and redeem orders are verified on-chain, redeemed USDC can only go to the policy, and the invested share is capped |
 | **ERC-8004 identity** | **Live.** All five agents are registered in Arc testnet's ERC-8004 Identity Registry (ids 897330 to 897334, v2.0.0). Each agent card is stored on-chain and names the key that signs for it, and the app and verifier re-read them from the chain. We do **not** use the standard's Reputation Registry: scores and bonds stay in our own `AgentRegistry`, moved only by the Auditor |
 | **Decision Lab** (`/lab`) | Done. Per agent: rules alone, model proposal, what it signed, and an interactive what-if showing a model can only add doubt |
-| MCP server (`/mcp`) | Done. `check_invoice`, `demo_invoices`, `onchain_proof` over Streamable HTTP; results are simulated, the contract is the gate |
+| MCP server (`/mcp`) | Done. `check_invoice` (real agents, real contract answer, nothing stored, nothing paid), `demo_invoices`, `onchain_proof` over Streamable HTTP |
 | CI | GitHub Actions runs every test suite, typechecks, builds the app and scans for committed secrets |
-| Frontend: invoices, escalations, receipts, demo | **Wired to the real agents** through server-side API routes. Payments are recorded in a demo ledger (simulated, no chain) |
-| Frontend: landing, docs, pricing | Static pages |
-| Frontend: On-chain, Agents, dashboard | **Live from Arc testnet:** keyless re-verification, receipt replay, agent scores and bonds, Auditor events. Traction shows real partners only, which is zero today |
-| Executor + receipt replay | Done and used on Arc through a Circle wallet (the demo script). Not triggered from the web UI |
+| **Database** | **Done.** Postgres in production (`DATABASE_URL`), the same engine in-process (PGlite) for development and tests. Vendors, agreements, payment history, invoices, sessions, outcomes, and the Executor's durable records and receipts. 25 tests |
+| **Wallet sign-in and roles** | **Done.** Sign in by signing a message in MetaMask (one-time nonce, domain-bound, 12 h session in an httpOnly cookie). Roles: admin, operator, guest. Only operators and admins can pay; only admins add vendors; a guest sees only their own invoices |
+| **Pay from the app** | **Done and tested live.** The Executor asks the real contract first (`evaluate`) and sends through Circle only if the eight rules pass. Cross-chain payments are completed in the background and resumed after a restart |
+| **Human approval in MetaMask** | **Done and tested live.** Above the limit, the approver wallet signs an EIP-712 approval in MetaMask. The server checks that the signer is the on-chain `humanApprover` before it sends; the contract checks again. No approver key exists on the server |
+| **Vendor ledger** | **Done.** Admins add vendors in the app; the wallet is allowlisted on-chain by a Circle screener wallet and waits out a cooling-off. Each vendor's real on-chain status is shown |
+| **Auditor** | **Done and tested live.** An operator reports what really happened on an invoice (once). The Auditor Circle wallet writes the score changes and bond slashes to the registry. Rules in `frontend/src/server/auditor.ts` |
+| Frontend | Every page reads the live system. The dashboard shows counts from the database and the chain, never invented numbers; traction shows consenting partners only (zero today) |
 | PDF input | **Text-based PDFs work** (upload in the inbox; 5 MB and 10 page caps, hardened pdf.js). **Scanned PDFs need OCR, which is not built** and are rejected with a clear message. Invoices in a layout the parser does not know are held for a human unless a free model is configured to propose the missing fields (see below) |
 | Deployment to Arc testnet | **Done.** Registry, policy v0.2 and treasury deployed against the real USDC. All seven demo cases ran on-chain on v0.2 |
 | Circle Wallets | **Used.** The five agents' signing keys and the Executor wallet are Circle developer-controlled wallets on ARC-TESTNET |
-| Web inbox "Release" -> Arc | Not wired, on purpose for now: an unauthenticated public page that can trigger payments would be unsafe. The on-chain run is a script (`executor/scripts/onchain-demo.ts`) |
-| Auditor | **Partly.** `contracts/scripts/audit-arc.js` writes outcomes on-chain (scores move, a bond is slashed and restored), but the ground truth is scripted. Reconciliation against real external data is not built |
 | Real users and traction | **None yet.** The dashboard shows 0 until a consenting partner is added to `frontend/data/traction.json`. Playbook: `docs/TRACTION.md` |
+| Not built | OCR for scanned PDFs; email intake; reconciliation against an external system of record (the Auditor learns from a person's report, not from a bank or ERP feed); an external sanctions feed (the block list is a setting plus the contract's challenge function) |
 
-Every number on the frontend (volume, invoices processed, days payable, scores) is invented mock data and is labelled as such in the UI.
+There is no mock data in the app. The reference run on `/onchain` and the seven example invoices are inputs and records we created, and they are labelled as ours.
 
 ## Live on Arc testnet
 
@@ -231,17 +234,22 @@ Model names change often, so check each provider's current free models. **Privac
 cd frontend
 npm install
 npm run dev        # http://localhost:3000
+npm test           # 25 tests: database, wallet sign-in, Auditor rules
 ```
 
-Routes: `/` landing, `/docs`, `/pricing`, `/dashboard`, `/invoices`, `/escalations`, `/receipts`, `/agents`, `/demo`, `/onchain`, and the MCP endpoint `/mcp`.
+Routes: `/` landing, `/docs`, `/pricing`, `/dashboard`, `/invoices`, `/escalations`, `/receipts`, `/vendors`, `/agents`, `/lab`, `/demo`, `/onchain`, and the MCP endpoint `/mcp`.
 
-The app imports `agents/` and runs it in server-side API routes (`/api/invoices`, `/api/invoices/:uid/decision`, `/api/samples`, `/api/reset`), so you need to run `npm install` in `agents/` too. On first load it feeds the five demo invoices through the real agents and saves the demo ledger to `frontend/.data/`. Paste an invoice or upload a text-based PDF in the inbox to run it live. Copy `frontend/.env.example` to `.env.local` to add free models.
+**Two modes.** With Circle credentials and the deployment record present the server is **live**: agents sign through Circle, the real contract answers, Pay sends a real transaction. Without them (a fresh clone, local development only) it is **preview**: the agents still run and sign with local keys, but nothing can be paid, and the UI says "Preview · no chain" in the header. A production server without the live runtime refuses to run. To run live locally without copying secrets, set `COSIGN_LOAD_ENV_FILE=../executor/.env` and `COSIGN_ADMIN_ADDRESSES=<your wallet>`.
 
-Things to know before deploying it anywhere public:
+**First steps in the app:** sign in with MetaMask (an address listed in `COSIGN_ADMIN_ADDRESSES` is an admin) -> Vendors -> add a vendor (a real on-chain allowlist transaction, then a cooling-off) -> Invoices -> run an invoice -> Pay. The example vendors from our testnet run can be imported with `npx tsx scripts/seed-example-vendors.ts`. To let your wallet approve over-limit payments, make it the on-chain approver: `APPROVER_ADDRESS=0x... npx hardhat run scripts/wire-live-arc.js --network arcTestnet` (run by the contract owner).
 
-- The API routes are unauthenticated, size-limited and rate-limited (20 requests a minute per IP). If you configure model API keys, anyone who can reach the app can spend them, so do not expose a keyed deployment without real authentication.
-- `NODE_ENV=production` refuses to start without `COSIGN_AGENT_MNEMONIC`; development uses a public test mnemonic.
-- "Released" in the UI means recorded in the demo ledger. The contract rules shown are a preview computed from the agents' output, not the deployed contract.
+**Prove it works against the real chain:** `E2E_BASE_URL=... E2E_ADMIN_KEY=... E2E_APPROVER_KEY=... npx tsx scripts/e2e-live.ts` runs 20 checks (sign-in, pay, receipt replay, Auditor writes, approver signature, permissions, vendor registration).
+
+Deploying: see [`docs/DEPLOY.md`](./docs/DEPLOY.md). Things to know before it is public:
+
+- Sign-in is by wallet; only operators and admins can pay, only admins can add vendors, and a guest sees only their own invoices. Anonymous callers can use the MCP `check_invoice` tool, which never stores or pays anything.
+- Rate limits are per IP and in memory. If you configure model API keys, anyone who can sign in can spend them, so keep the allowlist of who may sign in in mind.
+- The server holds Circle API credentials. Anyone who gets them can move whatever the Circle wallets hold (test gas and nothing else, here). Put them only in your host's secret settings.
 
 ## Use Cosign from another agent
 
@@ -251,11 +259,11 @@ The app exposes a stateless remote MCP endpoint (Streamable HTTP). For example, 
 claude mcp add --transport http cosign https://<your-deployment>/mcp
 ```
 
-Tools: `check_invoice` (five agents, verdicts and reasons; **simulated**, nothing is paid), `demo_invoices` (seven labelled samples), `onchain_proof` (the recorded Arc run, re-verified now). Invoice text is passed as untrusted data. The endpoint is rate limited and size limited and has no authentication, so do not give a keyed deployment (with model API keys) a public address without adding it.
+Tools: `check_invoice` (the real five agents and the real contract's answer; nothing is stored and nothing is paid), `demo_invoices` (seven labelled examples), `onchain_proof` (the recorded Arc run, re-verified now). Invoice text is passed as untrusted data. The endpoint is rate limited and size limited and has no authentication, so do not give a keyed deployment (with model API keys) a public address without adding it.
 
-## The seven demo cases
+## The seven example invoices
 
-Replayable at `/demo`. The contract tests cover the same behaviours.
+We wrote these, including the attacks. They are inputs: nothing is pre-recorded, and `/demo` runs the real agents when you press Run. The contract tests cover the same behaviours.
 
 | Case | Invoice | Expected result |
 | --- | --- | --- |

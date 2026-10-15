@@ -15,7 +15,7 @@ const JOBS = [
 /** The three roles that are not built, so they have no score. Stated plainly instead of showing invented numbers. */
 const NOT_BUILT = [
   { name: 'Executor', job: 'Sends the payment the contract releases. Built and tested; it has no score because it never gives a verdict.', note: 'Only role that can spend, and only through the contract' },
-  { name: 'Auditor', job: 'Reconciles payments and writes outcomes that move reputation.', note: 'Runs as a script today (contracts/scripts/audit-arc.js) with scripted ground truth' },
+  { name: 'Auditor', job: 'Writes what really happened onto the registry: score changes and bond slashes.', note: 'Runs in the app: an operator reports an outcome on an invoice and the Auditor wallet writes it on-chain' },
   { name: 'Collector', job: 'Chases receivables.', note: 'Not built' },
 ];
 
@@ -71,9 +71,9 @@ export default function Agents() {
       <Card className="mt-4">
         <h2 className="h2">How scores move</h2>
         <ul className="mt-3 space-y-2 text-[13px] text-ink/75">
-          <li>A confirmed catch (a FAIL or ESCALATE that held a payment later proven bad): score goes up.</li>
-          <li>A PASS that contributed to a payment later proven bad: score goes down and part of the bond is slashed into the loss-recovery pool. The operator then has to top the bond up to count again.</li>
-          <li>There are no agent-to-agent ratings. Only the Auditor address can write an outcome.</li>
+          <li>An operator or admin reports what really happened on an invoice, once. A hold that was right raises the agents that flagged it; a payment later reported as a duplicate, a wrong wallet or a wrong amount lowers the agent that should have caught it and slashes 0.1 USDC of its bond into the loss-recovery pool.</li>
+          <li>A slashed agent below the minimum bond stops counting toward quorum until its operator tops the bond up.</li>
+          <li>There are no agent-to-agent ratings. Only the Auditor wallet can write an outcome, and only on a person’s report.</li>
           <li>Thresholds, bond sizes and slash amounts are demo assumptions, not tuned values.</li>
         </ul>
         <p className="mt-4 text-[13px]">
