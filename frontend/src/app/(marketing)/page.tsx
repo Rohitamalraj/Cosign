@@ -25,7 +25,7 @@ const integrations = [
   ['Policy contract', 'Eight release rules, enforced on-chain. Re-check every result from the chain itself.', 'live'],
   ['CCTP', 'Pay a vendor on another chain: all five agents sign the destination, the policy burns USDC on Arc, Circle attests, and the mint lands on Base Sepolia. Checked from chain state.', 'live'],
   ['USYC', 'A treasury contract parks idle cash in USYC on a Treasurer order and redeems it back to the policy. Tested against a mock Teller; live use waits for Circle’s entitlement.', 'built'],
-  ['ERC-8004', 'Our registry is modelled on it. Portable identity across chains is future work.', 'next'],
+  ['ERC-8004', 'All five agents are registered in Arc’s ERC-8004 Identity Registry with an on-chain agent card that names the signing key. Our reputation still lives in our own registry.', 'live'],
 ];
 
 const faqs = [
@@ -197,7 +197,7 @@ export default function Landing() {
         <Section id="stack" className="pt-28">
           <Reveal>
             <Title serif="Built on Circle" bold="where it earns its place" />
-            <p className="mx-auto mt-5 max-w-xl text-center text-ink/70">Four pieces are live on Arc testnet today. One more is built and waiting on Circle access. The rest is on the roadmap, and we don’t claim it.</p>
+            <p className="mx-auto mt-5 max-w-xl text-center text-ink/70">Five pieces are live on Arc testnet today. One more is built and waiting on Circle access. The rest is on the roadmap, and we don’t claim it.</p>
           </Reveal>
           <Stagger className="mt-12 grid gap-px border border-ink/15 bg-ink/15 md:grid-cols-3" gap={0.07}>
             {integrations.map(([n, d, status], i) => (

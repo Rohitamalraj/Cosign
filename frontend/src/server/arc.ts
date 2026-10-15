@@ -1,7 +1,7 @@
 import 'server-only';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { JsonRpcProvider } from 'ethers';
+import { Contract, JsonRpcProvider, getBytes, hexlify } from 'ethers';
 import { readAgentState, verifyRun, type Deployment, type RecordedCase, type RunVerification, type AgentState } from '../../../executor/src/verify';
 import { CCTP_DESTINATIONS } from '../../../executor/src/cctp';
 import type { Receipt } from '../../../executor/src/receipt';
@@ -24,7 +24,13 @@ export interface AuditorEvent {
   scoreDelta: number; slashUsdc: number; scoreBefore: number; scoreAfter: number; tx: string; explorer: string;
 }
 
+export interface IdentityView {
+  registry: string;
+  agents: { role: string; erc8004AgentId: number; ownerOk: boolean; signerMatches: boolean; cardName: string | null; explorer: string }[];
+}
+
 export interface ArcView {
+  identity?: IdentityView;
   available: boolean;
   deployment?: Record<string, unknown> & { policy: string; registry: string; usdc: string; chainId: number; explorer?: { policy: string; registry: string } };
   cases?: (RecordedCase & { verification?: RunVerification['cases'][number] })[];
@@ -36,6 +42,25 @@ export interface ArcView {
   auditorEvents?: AuditorEvent[];
   auditorNote?: string;
   error?: string;
+}
+
+/** Re-read each agent's ERC-8004 identity from the chain: still owned by the operator, and its card still names the right signer. */
+async function readIdentity(provider: JsonRpcProvider, erc: { identityRegistry: string; agents: Record<string, { erc8004AgentId: number; owner: string; signer: string }> }): Promise<IdentityView> {
+  const c = new Contract(erc.identityRegistry, [
+    'function ownerOf(uint256) view returns (address)', 'function tokenURI(uint256) view returns (string)', 'function getMetadata(uint256, string) view returns (bytes)',
+  ], provider);
+  const agents: IdentityView['agents'] = [];
+  for (const [role, a] of Object.entries(erc.agents)) {
+    let ownerOk = false, signerMatches = false, cardName: string | null = null;
+    try {
+      ownerOk = (await c.ownerOf(a.erc8004AgentId)).toLowerCase() === a.owner.toLowerCase();
+      signerMatches = hexlify(getBytes(await c.getMetadata(a.erc8004AgentId, 'cosign.signer'))).toLowerCase() === a.signer.toLowerCase();
+      const uri: string = await c.tokenURI(a.erc8004AgentId);
+      if (uri.startsWith('data:application/json;base64,')) cardName = (JSON.parse(Buffer.from(uri.split(',')[1], 'base64').toString()) as { name?: string }).name ?? null;
+    } catch { /* leave false: shown as not verified */ }
+    agents.push({ role, erc8004AgentId: a.erc8004AgentId, ownerOk, signerMatches, cardName, explorer: `https://explorer.testnet.arc.io/token/${erc.identityRegistry}/instance/${a.erc8004AgentId}` });
+  }
+  return { registry: erc.identityRegistry, agents };
 }
 
 const g = globalThis as unknown as { __arcCache?: { at: number; view: ArcView } };
@@ -59,6 +84,7 @@ export async function getArcView(force = false): Promise<ArcView> {
     ? readdirSync(join(DIR, 'receipts')).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(join(DIR, 'receipts', f), 'utf8')) as Receipt)
     : [];
   const audit = json<{ events: AuditorEvent[]; note: string }>('auditor-events.json');
+  const erc = json<{ identityRegistry: string; agents: Record<string, { erc8004AgentId: number; owner: string; signer: string }> }>('erc8004.json');
 
   const view: ArcView = { available: true, deployment: dep, auditorEvents: audit?.events ?? [], auditorNote: audit?.note };
   try {
@@ -69,6 +95,7 @@ export async function getArcView(force = false): Promise<ArcView> {
     const cross = { dest: destProvider, destination: base, tokenMessenger: (dep.tokenMessenger as string) ?? '', destUsdc: BASE_SEPOLIA_USDC };
     const [res, state] = await Promise.all([verifyRun(provider, d, demo.cases, receipts, cross), readAgentState(provider, d, [1, 2, 3, 4, 5])]);
     destProvider.destroy();
+    if (erc) view.identity = await readIdentity(provider, erc);
     view.cases = demo.cases.map((c) => ({ ...c, verification: res.cases.find((v) => v.case === c.case) }));
     view.receipts = res.receipts;
     view.verifiedOk = res.ok;

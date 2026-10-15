@@ -93,6 +93,8 @@ A read-only `evaluate()` returns the failing rule without spending anything, so 
 | Executor service (`release`, idempotency, crash recovery, receipts, HTTP API) | Done. 34 unit tests plus chain tests against the real contract |
 | **CCTP cross-chain payouts** | **Live on testnet, end to end.** Case F burned 0.75 USDC on Arc and the Executor minted it on Base Sepolia after Circle attested it. The Executor resumes after a crash or a failed mint (tested), and `/onchain` shows both transactions, each re-checked from its own chain |
 | **USYC treasury** | **Contract built, deployed and tested against a mock Teller.** Not live: Circle has to entitle the contract (support ticket). The Treasurer agent's invest and redeem orders are verified on-chain, redeemed USDC can only go to the policy, and the invested share is capped |
+| **ERC-8004 identity** | **Live.** All five agents are registered in Arc testnet's ERC-8004 Identity Registry (ids 897330 to 897334, v2.0.0). Each agent card is stored on-chain and names the key that signs for it, and the app and verifier re-read them from the chain. We do **not** use the standard's Reputation Registry: scores and bonds stay in our own `AgentRegistry`, moved only by the Auditor |
+| **Decision Lab** (`/lab`) | Done. Per agent: rules alone, model proposal, what it signed, and an interactive what-if showing a model can only add doubt |
 | MCP server (`/mcp`) | Done. `check_invoice`, `demo_invoices`, `onchain_proof` over Streamable HTTP; results are simulated, the contract is the gate |
 | CI | GitHub Actions runs every test suite, typechecks, builds the app and scans for committed secrets |
 | Frontend: invoices, escalations, receipts, demo | **Wired to the real agents** through server-side API routes. Payments are recorded in a demo ledger (simulated, no chain) |
@@ -281,7 +283,7 @@ Replayable at `/demo`. The contract tests cover the same behaviours.
 
 ## Open questions
 
-- Are ERC-8004 registries deployed on Arc testnet, or do we deploy this minimal version?
+- ERC-8004: the Identity Registry exists on Arc testnet and the agents are registered in it. Open: whether to also write Auditor outcomes to the standard Reputation Registry (it forbids feedback from an agent's owner, so the Auditor would need a separate address).
 - Which address-screening source: Circle tooling, or self-hosted OpenSanctions?
 - Which two models power the Matcher and Sentinel?
 - Where does the evidence bundle live (IPFS or object storage), and who can read it?

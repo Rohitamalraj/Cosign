@@ -1,0 +1,50 @@
+{
+  "network": "arc-testnet",
+  "chainId": 5042002,
+  "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+  "registryVersion": "2.0.0",
+  "agentRegistry": "eip155:5042002:0x8004A818BFB912233c491871b3d84c89A494BD9e",
+  "registeredAt": "2026-10-15T17:35:55.368Z",
+  "agents": {
+    "READER": {
+      "erc8004AgentId": 897330,
+      "owner": "0xFAaA32C81457B1AEdd682deEd1c2890Cca6E9901",
+      "cosignAgentId": 1,
+      "signer": "0x7908ae8e267e45c166f91f49673179dc49654a7f",
+      "tx": "0xa3ea187c18439e8e8226a9e181e3354039ddd7e032a63b88cff2a32da1389f94",
+      "explorer": "https://explorer.testnet.arc.io/tx/0xa3ea187c18439e8e8226a9e181e3354039ddd7e032a63b88cff2a32da1389f94"
+    },
+    "VERIFIER": {
+      "erc8004AgentId": 897331,
+      "owner": "0xFAaA32C81457B1AEdd682deEd1c2890Cca6E9901",
+      "cosignAgentId": 2,
+      "signer": "0x7bb0084c4cda78d56fe1fab68b232228dcace4a2",
+      "tx": "0x9a2471f73fb7f7500172cb90db55cbd288b99b9337008da328e95074df1c977e",
+      "explorer": "https://explorer.testnet.arc.io/tx/0x9a2471f73fb7f7500172cb90db55cbd288b99b9337008da328e95074df1c977e"
+    },
+    "MATCHER": {
+      "erc8004AgentId": 897332,
+      "owner": "0xFAaA32C81457B1AEdd682deEd1c2890Cca6E9901",
+      "cosignAgentId": 3,
+      "signer": "0x25d8edf74978950762f26706737257ba957b15f8",
+      "tx": "0xc2a788616fa20dce77c975aab5a1f8f9ab6b4a9dc2bb3b74364d45880ea9c30e",
+      "explorer": "https://explorer.testnet.arc.io/tx/0xc2a788616fa20dce77c975aab5a1f8f9ab6b4a9dc2bb3b74364d45880ea9c30e"
+    },
+    "SENTINEL": {
+      "erc8004AgentId": 897333,
+      "owner": "0xFAaA32C81457B1AEdd682deEd1c2890Cca6E9901",
+      "cosignAgentId": 4,
+      "signer": "0xa1896b6ef65b16042d2f7b062d0cd697ff6690c9",
+      "tx": "0x9d30b39ac57ed7ee083496a539cbd1828c6c6a91741aa3efb5d34cb9bcaf2177",
+      "explorer": "https://explorer.testnet.arc.io/tx/0x9d30b39ac57ed7ee083496a539cbd1828c6c6a91741aa3efb5d34cb9bcaf2177"
+    },
+    "TREASURER": {
+      "erc8004AgentId": 897334,
+      "owner": "0xFAaA32C81457B1AEdd682deEd1c2890Cca6E9901",
+      "cosignAgentId": 5,
+      "signer": "0xd50f88926030af30823cc370de05b327cbc865e5",
+      "tx": "0x108e3fc1efa055ab71afb4d78f69e1814c1ac0cd87751e8fbfc1cef119ac826b",
+      "explorer": "https://explorer.testnet.arc.io/tx/0x108e3fc1efa055ab71afb4d78f69e1814c1ac0cd87751e8fbfc1cef119ac826b"
+    }
+  }
+}

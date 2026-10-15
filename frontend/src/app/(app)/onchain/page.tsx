@@ -144,6 +144,27 @@ export default function OnChain() {
             </Card>
           )}
 
+          {view.identity && (
+            <Card className="mb-4">
+              <h2 className="h2 mb-1">Standard identity (ERC-8004), read live from Arc</h2>
+              <p className="mb-4 text-[13px] text-ink/60">
+                Each agent is also registered in Arc’s ERC-8004 Identity Registry (<span className="font-mono">{short(view.identity.registry, 8, 6)}</span>), so other apps can find it through the standard. The agent card is stored on-chain and names the key that signs for it.
+                Our scores and bonds stay in Cosign’s own registry above: we do not write to the standard Reputation Registry.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                {view.identity.agents.map((a) => (
+                  <div key={a.role} className="border border-ink/15 p-4">
+                    <p className="eyebrow">ERC-8004 #{a.erc8004AgentId}</p>
+                    <p className="mt-1 font-display text-[18px] font-extrabold tracking-h3">{a.cardName ?? a.role}</p>
+                    <p className={`mt-2 font-mono text-[11px] ${a.ownerOk ? 'text-[#2c6b57]' : 'text-[#8e2e2a]'}`}>{a.ownerOk ? '✓ owned by the operator' : '✗ owner mismatch'}</p>
+                    <p className={`font-mono text-[11px] ${a.signerMatches ? 'text-[#2c6b57]' : 'text-[#8e2e2a]'}`}>{a.signerMatches ? '✓ card names the signer' : '✗ signer mismatch'}</p>
+                    <a className="mt-1 block font-mono text-[11px] text-violet underline" href={a.explorer} target="_blank" rel="noreferrer">explorer</a>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           {view.auditorEvents && view.auditorEvents.length > 0 && (
             <Card>
               <h2 className="h2 mb-1">Auditor events</h2>

@@ -4,6 +4,7 @@ import { JsonRpcProvider } from 'ethers';
 import { readAgentState, verifyRun, type Deployment, type RecordedCase } from '../src/verify';
 import { CCTP_DESTINATIONS } from '../src/cctp';
 import { existsSync } from 'node:fs';
+import { Contract, getBytes, hexlify } from 'ethers';
 import type { Receipt } from '../src/receipt';
 
 /** Re-check every recorded run against the CURRENT policy (deployments/onchain-demo*.json) from chain state. Needs no keys. Exit code 1 on any mismatch. */
@@ -29,12 +30,28 @@ async function main() {
   }
   for (const r of res.receipts) console.log(`Receipt ${r.invoiceHash.slice(0, 12)}…: replay ${r.ok ? 'OK' : 'FAILED'} (${r.checks.length} checks)`);
 
+  // ERC-8004 identities, if registered: each NFT is still owned by the operator and its metadata names the signer.
+  let identityOk = true;
+  if (existsSync(join(dir, 'erc8004.json'))) {
+    const erc = JSON.parse(readFileSync(join(dir, 'erc8004.json'), 'utf8')) as { identityRegistry: string; agents: Record<string, { erc8004AgentId: number; owner: string; signer: string }> };
+    const id = new Contract(erc.identityRegistry, ['function ownerOf(uint256) view returns (address)', 'function getMetadata(uint256, string) view returns (bytes)'], provider);
+    console.log('\nERC-8004 identities (' + erc.identityRegistry + '):');
+    for (const [role, a] of Object.entries(erc.agents)) {
+      const owner = (await id.ownerOf(a.erc8004AgentId)) as string;
+      const signer = hexlify(getBytes(await id.getMetadata(a.erc8004AgentId, 'cosign.signer')));
+      const ok = owner.toLowerCase() === a.owner.toLowerCase() && signer.toLowerCase() === a.signer.toLowerCase();
+      identityOk = identityOk && ok;
+      console.log(`    ${ok ? 'ok  ' : 'FAIL'} ${role} #${a.erc8004AgentId}: owner ${owner}, card signer ${signer}`);
+    }
+  }
+
   const state = await readAgentState(provider, d, [1, 2, 3, 4, 5]);
   console.log(`\nReputation now (min score ${state.minScore}, min bond ${state.minBondUsdc} USDC, auditor ${state.auditor}):`);
   for (const a of state.agents) console.log(`    agent ${a.agentId}: score ${a.scoreNow}, bond ${a.bondUsdc} USDC, eligible ${a.eligible}`);
 
-  console.log(res.ok ? '\nALL VERIFIED from chain state' : '\nSOME CHECKS FAILED');
-  process.exit(res.ok ? 0 : 1);
+  const all = res.ok && identityOk;
+  console.log(all ? '\nALL VERIFIED from chain state' : '\nSOME CHECKS FAILED');
+  process.exit(all ? 0 : 1);
 }
 
 main().catch((e) => { console.error(e instanceof Error ? e.message : e); process.exit(1); });

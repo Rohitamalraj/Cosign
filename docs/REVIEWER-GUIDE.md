@@ -15,6 +15,7 @@ Five independent agents each **sign** a verdict about an invoice, and an on-chai
 | Load **case G** (chain swap) | The Verifier signs FAIL: the vendor is registered for Arc but the invoice asks for Base |
 | Load **case F** (pay on Base) | All five agents PASS and sign destination domain 6 (Base Sepolia) |
 | Upload a text PDF, or paste your own invoice | Same agents. A layout we cannot read is held for a human, not guessed |
+| Open **/lab** (Decision Lab) | Rules alone vs model proposal vs signed verdict per agent, plus a what-if: set a model's opinion to PASS and watch the signed verdict not improve |
 | Open **/demo** | Step-by-step replay of seven cases against the eight rules |
 | Open **/onchain** and press **Re-verify now** | The page reads Arc testnet (and Base Sepolia for the cross-chain leg) and re-checks every payment, receipt and agent score. No keys |
 | Point any MCP client at **/mcp** | `check_invoice`, `demo_invoices`, `onchain_proof` |
@@ -48,4 +49,5 @@ It prints each case and `ALL VERIFIED from chain state`. For the cross-chain cas
 | How is a payment sent exactly once? | `executor/src/executor.ts` (evaluate first, durable record, paid-set check, lock) |
 | How does cross-chain settle? | `executor/src/cctp.ts` |
 | How is a result re-checked without us? | `executor/src/verify.ts`, `executor/src/receipt.ts` |
+| Where are the standard identities? | `contracts/scripts/register-8004-arc.js`, `deployments/erc8004.json` (Arc's ERC-8004 Identity Registry) |
 | Where does the treasury (USYC) logic live? | `contracts/contracts/CosignTreasury.sol` |

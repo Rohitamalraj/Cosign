@@ -11,6 +11,7 @@ const links = [
   { href: '/receipts', label: 'Receipts' },
   { href: '/agents', label: 'Agents' },
   { href: '/onchain', label: 'On-chain' },
+  { href: '/lab', label: 'Decision Lab' },
   { href: '/demo', label: 'Demo' },
 ];
 
