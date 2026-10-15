@@ -75,7 +75,13 @@ async function main() {
   const out = await a.call(`/api/invoices/${encodeURIComponent(inv1.uid)}/outcome`, { body: { kind: 'confirmed_correct', note: 'e2e check' } });
   const written = (out.body.outcome?.effects ?? []).filter((e: any) => e.tx).length;
   ok(out.status === 200 && written === 5, `Auditor wrote ${written}/5 score changes on-chain`);
-  const after = await Promise.all([1, 2, 3, 4, 5].map(async (i) => Number((await registry.getAgent(i)).score)));
+  // The RPC can lag a block behind a confirmed transaction, so give it a few seconds.
+  let after = before;
+  for (let t = 0; t < 8; t++) {
+    after = await Promise.all([1, 2, 3, 4, 5].map(async (i) => Number((await registry.getAgent(i)).score)));
+    if (after.some((x, i) => x !== before[i])) break;
+    await new Promise((r) => setTimeout(r, 2000));
+  }
   ok(after.every((s, i) => s === Math.min(100, before[i] + 1)), `scores read from the registry rose by 1: ${before.join(',')} -> ${after.join(',')}`);
   ok((await a.call(`/api/invoices/${encodeURIComponent(inv1.uid)}/outcome`, { body: { kind: 'confirmed_correct' } })).status === 409, 'a second outcome for the same invoice is refused (409)');
 

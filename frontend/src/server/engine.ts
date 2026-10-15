@@ -364,7 +364,7 @@ export async function reportOutcome(uid: string, kind: OutcomeKind, note: string
   for (const e of effects) {
     const base: Done = { ...e, slashMicro: e.slashMicro.toString() };
     try {
-      const { txHash } = await live.call('AUDITOR', { contract: live.deployment.registry, signature: 'recordOutcome(uint256,int32,uint128)', params: [e.agentId, e.scoreDelta, e.slashMicro], key: `outcome:${outcome.id}:${e.agentId}` });
+      const { txHash } = await live.call('AUDITOR', { contract: live.deployment.registry, signature: 'recordOutcome(uint256,int32,uint128)', params: [e.agentId, e.scoreDelta, e.slashMicro], key: `outcome:${live.deployment.registry}:${uid}:${outcome.createdAt}:${e.agentId}` });
       done.push({ ...base, tx: txHash });
     } catch (err) {
       done.push({ ...base, error: String((err as Error).message).slice(0, 160) });
@@ -444,13 +444,13 @@ export async function registerVendorOnchain(db: Db, live: Live, vendorId: string
     const policy = live.deployment.policy;
     const [eligibleAt] = await live.policy.payees(vendor.wallet);
     if (Number(eligibleAt) === 0 && vendor.chains.includes('arc')) {
-      txs.arc = (await live.call('SCREENER', { contract: policy, signature: 'registerPayee(address,bool)', params: [vendor.wallet, false], key: `payee:arc:${vendor.id}:${vendor.wallet}` })).txHash;
+      txs.arc = (await live.call('SCREENER', { contract: policy, signature: 'registerPayee(address,bool)', params: [vendor.wallet, false], key: `payee:${policy}:arc:${vendor.wallet}` })).txHash;
     }
     for (const c of vendor.chains) {
       const d = chainDomain(c);
       if (d === null || d === ARC_DOMAIN) continue;
       const [e2] = await live.policy.remotePayees(d, vendor.wallet);
-      if (Number(e2) === 0) txs[c] = (await live.call('SCREENER', { contract: policy, signature: 'registerRemotePayee(uint32,address,bool)', params: [d, vendor.wallet, false], key: `payee:${d}:${vendor.id}:${vendor.wallet}` })).txHash;
+      if (Number(e2) === 0) txs[c] = (await live.call('SCREENER', { contract: policy, signature: 'registerRemotePayee(uint32,address,bool)', params: [d, vendor.wallet, false], key: `payee:${policy}:${d}:${vendor.wallet}` })).txHash;
     }
     await setVendorOnchain(db, vendor.id, { registered: true, registerTxs: txs, error: null, registeredAt: new Date().toISOString() });
   } catch (e) {

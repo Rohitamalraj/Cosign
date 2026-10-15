@@ -9,8 +9,15 @@ import { NextResponse } from 'next/server';
 
 const hits = new Map<string, number[]>();
 
+/** One counter per caller per route (ids in the path are folded together), so a busy page cannot starve an unrelated action. */
+function bucketOf(req: Request): string {
+  try {
+    return new URL(req.url).pathname.split('/').map((s) => (s.length > 24 || /[%#@]|^0x/.test(s) ? ':id' : s)).join('/');
+  } catch { return 'unknown'; }
+}
+
 export function rateLimited(req: Request, limit = 20, windowMs = 60_000): boolean {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'local';
+  const ip = `${req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'local'} ${bucketOf(req)}`;
   const now = Date.now();
   const recent = (hits.get(ip) ?? []).filter((t) => now - t < windowMs);
   if (recent.length >= limit) { hits.set(ip, recent); return true; }
