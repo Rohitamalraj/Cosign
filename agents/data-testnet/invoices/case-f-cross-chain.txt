@@ -1,0 +1,15 @@
+INVOICE INV-2007
+From: Meridian Studio <billing@meridianstudio.example>
+To: Acme Studio
+Issued: 2026-10-14
+Due: 2026-10-21
+Agreement: SOW-31
+Currency: USDC
+Pay to wallet: 0x9c9d39d9bd9def6680555314ea45fef4f5f61ccf
+Settlement chain: Base Sepolia
+
+Description | Qty | Rate | Amount
+Brand illustration - batch 1 | 5 | 0.15 | 0.75
+
+Total: 0.75 USDC
+Terms: Net 7

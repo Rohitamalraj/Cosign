@@ -9,6 +9,8 @@ export interface Vendor {
   aliases: string[];
   emailDomain: string;
   wallet: string; // lowercase 0x address on file
+  /** Chains the vendor is registered to be paid on (lowercase names, see chains.ts). Absent means Arc only. */
+  chains?: string[];
   walletSinceDays: number;
   category: string;
   paidCount: number;
@@ -57,7 +59,7 @@ const micro = (s: string): bigint => {
 /** Convert the JSON fixture (decimal strings) into typed ledger data. */
 export function ledgerFromJson(raw: any): Ledger {
   return {
-    vendors: raw.vendors.map((v: any) => ({ ...v, aliases: v.aliases ?? [], wallet: v.wallet.toLowerCase() })),
+    vendors: raw.vendors.map((v: any) => ({ ...v, aliases: v.aliases ?? [], wallet: v.wallet.toLowerCase(), chains: (v.chains ?? ['arc']).map((c: string) => String(c).toLowerCase()) })),
     agreements: raw.agreements.map((a: any) => ({
       ref: a.ref,
       vendorId: a.vendorId,

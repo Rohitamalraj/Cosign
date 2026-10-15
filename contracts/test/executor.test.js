@@ -107,7 +107,7 @@ describe('Executor (against the real contract)', function () {
 
       expect(released.status).to.equal('RELEASED');
       expect(await token.balanceOf(a.package.req.payee)).to.equal(before + usdc(1250));
-      expect(released.receipt.policyVersion).to.equal('policy-v0.1.0');
+      expect(released.receipt.policyVersion).to.equal('policy-v0.2.0');
       expect(released.receipt.attestations).to.have.length(5);
       expect((await store.getRecord(a.invoiceHash)).state).to.equal('CONFIRMED');
       agents.recordPaid(ledger, a.parsed, a.invoiceHash, 'northwind');
@@ -323,7 +323,7 @@ describe('Executor (against the real contract)', function () {
       expect(held).to.include({ status: 'HELD', rule: 6, detail: 0 });
 
       const expiry = (await time.latest()) + 3600;
-      const td = ex.humanApprovalTypedData({ chainId: cfg.chainId, policyAddress: policy.target, invoiceHash: e.package.req.invoiceHash, payee: e.package.req.payee, amount: e.package.req.amount, expiry });
+      const td = ex.humanApprovalTypedData({ chainId: cfg.chainId, policyAddress: policy.target, invoiceHash: e.package.req.invoiceHash, payee: e.package.req.payee, amount: e.package.req.amount, destinationDomain: e.package.req.destinationDomain, expiry });
       const humanSig = ex.packHumanSig(expiry, await approver.signTypedData(td.domain, td.types, td.value));
 
       const out = await executor.release({ ...e.package, humanSig });
@@ -334,7 +334,7 @@ describe('Executor (against the real contract)', function () {
 
       // And a receipt claiming a human signature that was swapped for a stranger's does not replay.
       const forgedExpiry = (await time.latest()) + 3600;
-      const ftd = ex.humanApprovalTypedData({ chainId: cfg.chainId, policyAddress: policy.target, invoiceHash: e.package.req.invoiceHash, payee: e.package.req.payee, amount: e.package.req.amount, expiry: forgedExpiry });
+      const ftd = ex.humanApprovalTypedData({ chainId: cfg.chainId, policyAddress: policy.target, invoiceHash: e.package.req.invoiceHash, payee: e.package.req.payee, amount: e.package.req.amount, destinationDomain: e.package.req.destinationDomain, expiry: forgedExpiry });
       const forged = structuredClone(out.receipt);
       forged.humanSig = ex.packHumanSig(forgedExpiry, await stranger.signTypedData(ftd.domain, ftd.types, ftd.value));
       expect((await ex.replayReceipt(forged, { approver: approver.address })).ok).to.equal(false);

@@ -47,7 +47,7 @@ export class CircleSigner {
 }
 
 const RELEASE_SIGNATURE =
-  'release((bytes32,address,uint256,bytes32),(bytes32,address,uint256,uint8,uint8,uint16,bytes32,uint256,uint64,uint256)[],bytes[],bytes)';
+  'release((bytes32,address,uint256,bytes32,uint32),(bytes32,address,uint256,uint8,uint8,uint16,bytes32,uint256,uint64,uint256,uint32)[],bytes[],bytes)';
 
 /** Deterministic UUID for an invoice, so Circle itself will not create two transactions for one release. */
 export function idempotencyUuid(key: string): string {
@@ -65,13 +65,13 @@ export class CircleSubmitter implements Submitter {
   ) {}
 
   async submit(pkg: PackageInput, idempotencyKey: string): Promise<SubmitResult> {
-    const att = (a: PackageInput['atts'][number]) => [a.invoiceHash, a.payee, a.amount.toString(), String(a.role), String(a.verdict), String(a.confidenceBps), a.evidenceHash, String(a.agentId), String(a.expiry), a.nonce.toString()];
+    const att = (a: PackageInput['atts'][number]) => [a.invoiceHash, a.payee, a.amount.toString(), String(a.role), String(a.verdict), String(a.confidenceBps), a.evidenceHash, String(a.agentId), String(a.expiry), a.nonce.toString(), String(a.destinationDomain)];
     const res = await this.client.createContractExecutionTransaction({
       walletId: this.walletId,
       contractAddress: this.policyAddress,
       abiFunctionSignature: RELEASE_SIGNATURE,
       abiParameters: [
-        [pkg.req.invoiceHash, pkg.req.payee, pkg.req.amount.toString(), pkg.req.category],
+        [pkg.req.invoiceHash, pkg.req.payee, pkg.req.amount.toString(), pkg.req.category, String(pkg.req.destinationDomain)],
         pkg.atts.map(att),
         pkg.sigs,
         pkg.humanSig,

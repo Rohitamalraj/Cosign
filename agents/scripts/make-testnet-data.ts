@@ -27,6 +27,7 @@ const WALLETS: Record<string, string> = {
   '0xb90d0000000000000000000000000000000077c1': wallet('lumen-new'),
   '0x5d1200000000000000000000000000000000ab40': wallet('orbit'),
   '0x3e8b00000000000000000000000000000000c5d7': wallet('kestrel'),
+  '0x9a3c0000000000000000000000000000000041f0': wallet('meridian'),
   '0xdead00000000000000000000000000000000beef': wallet('attacker'),
 };
 writeFileSync(KEYS, JSON.stringify(keys, null, 2));

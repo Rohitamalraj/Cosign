@@ -63,6 +63,8 @@ export function parseInvoice(text: string): ParsedInvoice {
   const wallet = field(invoicePart, /Pay to wallet|Payment address|Wallet/i);
   const payee = wallet && /^0x[a-fA-F0-9]{40}$/.test(wallet) ? wallet.toLowerCase() : null;
 
+  const chain = field(invoicePart, /Settlement chain|Pay on chain|Chain|Network/i);
+
   const totalLine = field(invoicePart, /Total/i);
   const totalMatch = totalLine?.match(/^([\d,]+(?:\.\d+)?)\s*([A-Za-z]{3,5})?$/);
   const totalMicro = totalMatch ? parseMicro(totalMatch[1]) : null;
@@ -91,6 +93,7 @@ export function parseInvoice(text: string): ParsedInvoice {
     agreementRef: field(invoicePart, /PO\s*\/\s*Agreement|Agreement|PO/i),
     currency,
     payee,
+    chain,
     totalMicro,
     lineItems: parseLineItems(invoicePart),
     terms,

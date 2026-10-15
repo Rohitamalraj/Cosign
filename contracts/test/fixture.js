@@ -19,6 +19,7 @@ const ATTESTATION_TYPES = {
     { name: 'agentId', type: 'uint256' },
     { name: 'expiry', type: 'uint64' },
     { name: 'nonce', type: 'uint256' },
+    { name: 'destinationDomain', type: 'uint32' },
   ],
 };
 const HUMAN_TYPES = {
@@ -26,6 +27,7 @@ const HUMAN_TYPES = {
     { name: 'invoiceHash', type: 'bytes32' },
     { name: 'payee', type: 'address' },
     { name: 'amount', type: 'uint256' },
+    { name: 'destinationDomain', type: 'uint32' },
     { name: 'expiry', type: 'uint64' },
   ],
 };
@@ -56,7 +58,7 @@ async function deployAll() {
   await token.mint(policy.target, usdc(1_000_000));
 
   const { chainId } = await ethers.provider.getNetwork();
-  const domain = { name: 'CosignPolicy', version: '1', chainId, verifyingContract: policy.target };
+  const domain = { name: 'CosignPolicy', version: '2', chainId, verifyingContract: policy.target };
 
   let counter = 0;
 
@@ -74,6 +76,7 @@ async function deployAll() {
     const amount = opts.amount ?? usdc(1_250);
     const category = opts.category ?? CATEGORY;
     const expiry = now + (opts.expiryOffset ?? 3_600);
+    const destinationDomain = opts.destinationDomain ?? 26;
 
     let atts = ROLE_NAMES.map((name, i) => ({
       invoiceHash,
@@ -86,6 +89,7 @@ async function deployAll() {
       agentId: agentIds[i],
       expiry,
       nonce: (opts.nonceBase ?? counter * 100) + i,
+      destinationDomain,
     }));
     if (opts.edit) atts.forEach((a, i) => opts.edit(a, i));
 
@@ -102,7 +106,7 @@ async function deployAll() {
       sigs.splice(idx, 1);
     }
 
-    return { req: { invoiceHash, payee: payeeAddr, amount, category }, atts, sigs, humanSig: '0x', expiry };
+    return { req: { invoiceHash, payee: payeeAddr, amount, category, destinationDomain }, atts, sigs, humanSig: '0x', expiry };
   }
 
   /** Human approval over the request, in the packed format the contract expects: uint64 expiry + signature. */
@@ -112,6 +116,7 @@ async function deployAll() {
       invoiceHash: req.invoiceHash,
       payee: req.payee,
       amount: amount ?? req.amount,
+      destinationDomain: req.destinationDomain,
       expiry: exp,
     });
     return ethers.concat([ethers.toBeHex(exp, 8), sig]);

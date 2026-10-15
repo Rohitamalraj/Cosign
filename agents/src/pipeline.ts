@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { ARC_DOMAIN, chainDomain } from './chains';
 import { runMatcher, runReader, runSentinel, runTreasurer, runVerifier, type AgentContext } from './agents';
 import { signAttestation, domainFor, type Attestation, type TypedDataSigner } from './eip712';
 import { canonicalJson, invoiceHash, keccak } from './hash';
@@ -22,7 +23,7 @@ export interface PipelineConfig {
 export type Decision = 'READY' | 'NEEDS_HUMAN' | 'HOLD';
 
 export interface ReleasePackage {
-  req: { invoiceHash: string; payee: string; amount: bigint; category: string };
+  req: { invoiceHash: string; payee: string; amount: bigint; category: string; destinationDomain: number };
   atts: Attestation[]; // ROLE_ORDER
   sigs: string[];
   humanSig: string;
@@ -80,6 +81,12 @@ export async function processInvoice(
     return { parsed, invoiceHash: null, results, decision: 'HOLD', reasons, package: null, evidence: {} };
   }
 
+  // The destination chain is signed too. A chain we cannot name cannot be signed, so nothing can be released.
+  const destinationDomain = parsed.chain ? chainDomain(parsed.chain) : ARC_DOMAIN;
+  if (destinationDomain === null) {
+    return { parsed, invoiceHash: null, results, decision: 'HOLD', reasons: [...reasons, `Unsupported settlement chain "${parsed.chain}".`], package: null, evidence: {} };
+  }
+
   const hash = invoiceHash(parsed);
   const expiry = Math.floor(now.getTime() / 1000) + (cfg.ttlSeconds ?? 3_600);
   const domain = domainFor(cfg.chainId, cfg.policyAddress);
@@ -106,7 +113,7 @@ export async function processInvoice(
     const att: Attestation = {
       invoiceHash: hash, payee: parsed.payee, amount: parsed.totalMicro, role: ROLE_INDEX[role],
       verdict: VERDICT_CODE[r.verdict], confidenceBps: Math.round(r.confidence * 10_000), evidenceHash,
-      agentId: cfg.agentIds[role], expiry, nonce: nextNonce(),
+      agentId: cfg.agentIds[role], expiry, nonce: nextNonce(), destinationDomain,
     };
     atts.push(att);
     sigs.push(await signAttestation(keys[role], domain, att));
@@ -114,7 +121,7 @@ export async function processInvoice(
 
   const category = keccak((vendor?.category ?? 'uncategorized').toLowerCase());
   const pkg: ReleasePackage = {
-    req: { invoiceHash: hash, payee: parsed.payee, amount: parsed.totalMicro, category },
+    req: { invoiceHash: hash, payee: parsed.payee, amount: parsed.totalMicro, category, destinationDomain },
     atts, sigs, humanSig: '0x',
   };
 

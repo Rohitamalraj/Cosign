@@ -8,6 +8,19 @@ import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {AgentRegistry, Role} from "./AgentRegistry.sol";
 
+/// @notice The one CCTP V2 call this contract makes: burn USDC here, mint on `destinationDomain` for `mintRecipient`.
+interface ITokenMessengerV2 {
+    function depositForBurn(
+        uint256 amount,
+        uint32 destinationDomain,
+        bytes32 mintRecipient,
+        address burnToken,
+        bytes32 destinationCaller,
+        uint256 maxFee,
+        uint32 minFinalityThreshold
+    ) external;
+}
+
 /// @title CosignPolicy
 /// @notice The single place that can release funds. Models give verdicts; this contract decides.
 ///         A payment is released only if all eight release rules pass. Any failure reverts, which means
@@ -17,7 +30,7 @@ import {AgentRegistry, Role} from "./AgentRegistry.sol";
 contract CosignPolicy is EIP712, Ownable {
     using SafeERC20 for IERC20;
 
-    string public constant POLICY_VERSION = "policy-v0.1.0";
+    string public constant POLICY_VERSION = "policy-v0.2.0";
 
     enum Verdict {
         NONE, // zero value must never read as PASS
@@ -27,7 +40,8 @@ contract CosignPolicy is EIP712, Ownable {
     }
 
     /// @dev One signed verdict per role. Mirrors the PRD's attestation schema; the evidence CID is
-    ///      committed as a bytes32 hash of the stored bundle's CID.
+    ///      committed as a bytes32 hash of the stored bundle's CID. `destinationDomain` is the CCTP domain the money
+    ///      lands on (26 = Arc itself), so every agent signs WHERE the payment goes, not just who gets it.
     struct Attestation {
         bytes32 invoiceHash;
         address payee;
@@ -39,6 +53,7 @@ contract CosignPolicy is EIP712, Ownable {
         uint256 agentId;
         uint64 expiry;
         uint256 nonce;
+        uint32 destinationDomain;
     }
 
     struct Request {
@@ -46,6 +61,7 @@ contract CosignPolicy is EIP712, Ownable {
         address payee;
         uint256 amount;
         bytes32 category;
+        uint32 destinationDomain;
     }
 
     struct PayeeState {
@@ -54,12 +70,14 @@ contract CosignPolicy is EIP712, Ownable {
     }
 
     bytes32 public constant ATTESTATION_TYPEHASH = keccak256(
-        "Attestation(bytes32 invoiceHash,address payee,uint256 amount,uint8 role,uint8 verdict,uint16 confidenceBps,bytes32 evidenceHash,uint256 agentId,uint64 expiry,uint256 nonce)"
+        "Attestation(bytes32 invoiceHash,address payee,uint256 amount,uint8 role,uint8 verdict,uint16 confidenceBps,bytes32 evidenceHash,uint256 agentId,uint64 expiry,uint256 nonce,uint32 destinationDomain)"
     );
     bytes32 public constant HUMAN_APPROVAL_TYPEHASH =
-        keccak256("HumanApproval(bytes32 invoiceHash,address payee,uint256 amount,uint64 expiry)");
+        keccak256("HumanApproval(bytes32 invoiceHash,address payee,uint256 amount,uint32 destinationDomain,uint64 expiry)");
 
     uint256 public constant REQUIRED_ROLES = 5;
+    uint32 public constant ARC_DOMAIN = 26; // CCTP domain id of Arc: a payment here is a plain USDC transfer
+    uint32 public constant CCTP_STANDARD_FINALITY = 2000; // Standard transfer: waits for finality, no fee; the only mode Arc offers as a source
 
     IERC20 public immutable usdc;
     AgentRegistry public immutable registry;
@@ -67,17 +85,21 @@ contract CosignPolicy is EIP712, Ownable {
     address public executor;
     address public humanApprover;
     address public screener; // Verifier operator: allowlists payees, opens and resolves challenges
+    ITokenMessengerV2 public tokenMessenger; // CCTP V2; zero disables every non-Arc destination
 
     uint256 public perTxLimit; // USDC base units
     uint64 public coolingOff = 48 hours;
 
     mapping(bytes32 => uint256) public categoryBudget; // remaining USDC per category
-    mapping(address => PayeeState) public payees;
+    mapping(address => PayeeState) public payees; // Arc payees; `blocked` here also blocks the address on every chain
+    mapping(uint32 => mapping(address => PayeeState)) public remotePayees; // destination domain => payee on that chain
     mapping(bytes32 => bool) public paid; // rule 7: the on-chain paid set
     mapping(uint256 => mapping(uint256 => bool)) public nonceUsed; // agentId => nonce
 
-    event Released(bytes32 indexed invoiceHash, address indexed payee, uint256 amount, bytes32 receiptHash, bool humanSigned);
+    event Released(bytes32 indexed invoiceHash, address indexed payee, uint256 amount, bytes32 receiptHash, bool humanSigned, uint32 destinationDomain);
     event PayeeRegistered(address indexed payee, uint64 eligibleAt);
+    event RemotePayeeRegistered(uint32 indexed domain, address indexed payee, uint64 eligibleAt);
+    event TokenMessengerSet(address tokenMessenger);
     event PayeeChallenged(address indexed payee);
     event PayeeCleared(address indexed payee);
     event BudgetSet(bytes32 indexed category, uint256 amount);
@@ -90,7 +112,7 @@ contract CosignPolicy is EIP712, Ownable {
     error NotScreener();
     error ZeroAddress();
 
-    constructor(IERC20 usdc_, AgentRegistry registry_, uint256 perTxLimit_) EIP712("CosignPolicy", "1") Ownable(msg.sender) {
+    constructor(IERC20 usdc_, AgentRegistry registry_, uint256 perTxLimit_) EIP712("CosignPolicy", "2") Ownable(msg.sender) {
         usdc = usdc_;
         registry = registry_;
         perTxLimit = perTxLimit_;
@@ -123,6 +145,11 @@ contract CosignPolicy is EIP712, Ownable {
         screener = screener_;
     }
 
+    function setTokenMessenger(address messenger) external onlyOwner {
+        tokenMessenger = ITokenMessengerV2(messenger);
+        emit TokenMessengerSet(messenger);
+    }
+
     function setPerTxLimit(uint256 limit) external onlyOwner {
         perTxLimit = limit;
         emit LimitSet(limit);
@@ -146,6 +173,16 @@ contract CosignPolicy is EIP712, Ownable {
         uint64 eligibleAt = skipCoolingOff ? uint64(block.timestamp) : uint64(block.timestamp) + coolingOff;
         payees[payee] = PayeeState(eligibleAt, false);
         emit PayeeRegistered(payee, eligibleAt);
+    }
+
+    /// @notice Allowlist a payee for payouts on another chain (a CCTP destination domain). Allowlisting on Arc does NOT
+    ///         allow the same address elsewhere: a vendor's chain is part of what the Verifier vouches for.
+    function registerRemotePayee(uint32 domain, address payee, bool skipCoolingOff) external onlyScreener {
+        if (payee == address(0)) revert ZeroAddress();
+        if (domain == ARC_DOMAIN) revert RuleFailed(5, 3);
+        uint64 eligibleAt = skipCoolingOff ? uint64(block.timestamp) : uint64(block.timestamp) + coolingOff;
+        remotePayees[domain][payee] = PayeeState(eligibleAt, false);
+        emit RemotePayeeRegistered(domain, payee, eligibleAt);
     }
 
     /// @notice Block a payee: sanctions hit, or an out-of-band challenge is open.
@@ -183,14 +220,29 @@ contract CosignPolicy is EIP712, Ownable {
             receipt = keccak256(abi.encode(receipt, _digest(atts[i])));
         }
 
-        usdc.safeTransfer(req.payee, req.amount);
-        emit Released(req.invoiceHash, req.payee, req.amount, receipt, humanSigned);
+        if (req.destinationDomain == ARC_DOMAIN) {
+            usdc.safeTransfer(req.payee, req.amount);
+        } else {
+            // Burn here; anyone can relay Circle's attestation to mint on the destination (destinationCaller = 0).
+            // maxFee 0 with Standard finality: if Circle ever charges a fee the burn reverts and nothing moves.
+            usdc.forceApprove(address(tokenMessenger), req.amount);
+            tokenMessenger.depositForBurn(
+                req.amount,
+                req.destinationDomain,
+                bytes32(uint256(uint160(req.payee))),
+                address(usdc),
+                bytes32(0),
+                0,
+                CCTP_STANDARD_FINALITY
+            );
+        }
+        emit Released(req.invoiceHash, req.payee, req.amount, receipt, humanSigned, req.destinationDomain);
     }
 
     /// @notice Check a release without moving funds. Returns (0, 0) when releasable, otherwise the first
     ///         failing rule and a detail code.
     /// @dev Details: rule 1 = missing role index; rule 2/3/4/8 = attestation index; rule 5 = 0 not allowlisted,
-    ///      1 blocked/challenged, 2 cooling-off; rule 6 = 0 human signature missing, 1 invalid or expired,
+    ///      1 blocked/challenged, 2 cooling-off, 3 no cross-chain route; rule 6 = 0 human signature missing, 1 invalid or expired,
     ///      2 category budget exceeded; rule 7 = 0 invoice already paid, 1 attestation nonce reused.
     function evaluate(Request calldata req, Attestation[] calldata atts, bytes[] calldata sigs, bytes calldata humanSig)
         public
@@ -218,7 +270,10 @@ contract CosignPolicy is EIP712, Ownable {
         // Rule 3: all attestations bind to the same invoice, payee and amount as the request.
         for (uint256 i = 0; i < REQUIRED_ROLES; i++) {
             Attestation calldata a = atts[i];
-            if (a.invoiceHash != req.invoiceHash || a.payee != req.payee || a.amount != req.amount) return (3, uint8(i));
+            if (
+                a.invoiceHash != req.invoiceHash || a.payee != req.payee || a.amount != req.amount
+                    || a.destinationDomain != req.destinationDomain
+            ) return (3, uint8(i));
         }
 
         // Rule 4: every verdict is PASS. FAIL or ESCALATE holds the payment for a human.
@@ -227,7 +282,14 @@ contract CosignPolicy is EIP712, Ownable {
         }
 
         // Rule 5: payee is allowlisted, not blocked, and finished its cooling-off period.
-        PayeeState memory ps = payees[req.payee];
+        PayeeState memory ps;
+        if (req.destinationDomain == ARC_DOMAIN) {
+            ps = payees[req.payee];
+        } else {
+            if (address(tokenMessenger) == address(0)) return (5, 3); // no cross-chain route configured
+            ps = remotePayees[req.destinationDomain][req.payee];
+            if (payees[req.payee].blocked) ps.blocked = true; // a sanctions hit blocks the address everywhere
+        }
         if (ps.eligibleAt == 0) return (5, 0);
         if (ps.blocked) return (5, 1);
         if (block.timestamp < ps.eligibleAt) return (5, 2);
@@ -259,8 +321,14 @@ contract CosignPolicy is EIP712, Ownable {
         return _digest(a);
     }
 
-    function humanApprovalDigest(bytes32 invoiceHash, address payee, uint256 amount, uint64 expiry) public view returns (bytes32) {
-        return _hashTypedDataV4(keccak256(abi.encode(HUMAN_APPROVAL_TYPEHASH, invoiceHash, payee, amount, expiry)));
+    function humanApprovalDigest(bytes32 invoiceHash, address payee, uint256 amount, uint32 destinationDomain, uint64 expiry)
+        public
+        view
+        returns (bytes32)
+    {
+        return _hashTypedDataV4(
+            keccak256(abi.encode(HUMAN_APPROVAL_TYPEHASH, invoiceHash, payee, amount, destinationDomain, expiry))
+        );
     }
 
     function _digest(Attestation calldata a) internal view returns (bytes32) {
@@ -277,7 +345,8 @@ contract CosignPolicy is EIP712, Ownable {
                     a.evidenceHash,
                     a.agentId,
                     a.expiry,
-                    a.nonce
+                    a.nonce,
+                    a.destinationDomain
                 )
             )
         );
@@ -289,7 +358,7 @@ contract CosignPolicy is EIP712, Ownable {
         if (humanSig.length != 8 + 65 || humanApprover == address(0)) return false;
         uint64 expiry = uint64(bytes8(humanSig[:8]));
         if (expiry <= block.timestamp) return false;
-        bytes32 digest = humanApprovalDigest(req.invoiceHash, req.payee, req.amount, expiry);
+        bytes32 digest = humanApprovalDigest(req.invoiceHash, req.payee, req.amount, req.destinationDomain, expiry);
         (address recovered, ECDSA.RecoverError err,) = ECDSA.tryRecover(digest, humanSig[8:]);
         return err == ECDSA.RecoverError.NoError && recovered == humanApprover;
     }

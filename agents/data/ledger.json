@@ -7,13 +7,15 @@
     { "id": "northwind", "name": "Northwind Design Co.", "emailDomain": "northwinddesign.example", "wallet": "0x71c4000000000000000000000000000000009ae2", "walletSinceDays": 142, "category": "design", "paidCount": 6 },
     { "id": "lumen", "name": "Lumen Cloud Hosting", "emailDomain": "lumencloud.example", "wallet": "0x44af0000000000000000000000000000000002d9", "walletSinceDays": 400, "category": "infrastructure", "paidCount": 12 },
     { "id": "orbit", "name": "Orbit Print Studio", "emailDomain": "orbitprint.example", "wallet": "0x5d1200000000000000000000000000000000ab40", "walletSinceDays": 200, "category": "marketing", "paidCount": 4 },
-    { "id": "kestrel", "name": "Kestrel Motion Ltd", "emailDomain": "kestrelmotion.example", "wallet": "0x3e8b00000000000000000000000000000000c5d7", "walletSinceDays": 90, "category": "production", "paidCount": 2 }
+    { "id": "kestrel", "name": "Kestrel Motion Ltd", "emailDomain": "kestrelmotion.example", "wallet": "0x3e8b00000000000000000000000000000000c5d7", "walletSinceDays": 90, "category": "production", "paidCount": 2 },
+    { "id": "meridian", "name": "Meridian Studio", "emailDomain": "meridianstudio.example", "wallet": "0x9a3c0000000000000000000000000000000041f0", "walletSinceDays": 120, "category": "design", "paidCount": 3, "chains": ["arc", "base sepolia"] }
   ],
   "agreements": [
     { "ref": "SOW-22", "vendorId": "northwind", "description": "Design retainer, 125.00 per hour", "lines": [{ "match": "design hours", "rate": "125.00" }], "remaining": "20000.00" },
     { "ref": "PLAN-LUMEN", "vendorId": "lumen", "description": "Monthly hosting plan, 480.00", "lines": [{ "match": "hosting", "rate": "480.00" }], "expectedTotal": "480.00" },
     { "ref": "PO-318", "vendorId": "orbit", "description": "Flyer print run, 31.00 each", "lines": [{ "match": "flyers", "rate": "31.00" }], "remaining": "310.00" },
-    { "ref": "MS-2", "vendorId": "kestrel", "description": "Production contract, milestone 2", "lines": [{ "match": "milestone 2", "rate": "9800.00" }], "expectedTotal": "9800.00", "remaining": "9800.00" }
+    { "ref": "MS-2", "vendorId": "kestrel", "description": "Production contract, milestone 2", "lines": [{ "match": "milestone 2", "rate": "9800.00" }], "expectedTotal": "9800.00", "remaining": "9800.00" },
+    { "ref": "SOW-31", "vendorId": "meridian", "description": "Illustration batches, 150.00 each", "lines": [{ "match": "illustration", "rate": "150.00" }], "remaining": "3000.00" }
   ],
   "history": [
     { "number": "INV-1020", "vendorId": "northwind", "total": "1000.00", "issued": "2026-09-12", "payee": "0x71c4000000000000000000000000000000009ae2", "lineSignature": "design hours sprint september#8", "status": "paid" },

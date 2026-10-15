@@ -4,7 +4,7 @@ import type { AttestationInput, PackageInput } from './types';
 
 export interface AttestationJson {
   invoiceHash: string; payee: string; amount: string; role: number; verdict: number; confidenceBps: number;
-  evidenceHash: string; agentId: number; expiry: number; nonce: string;
+  evidenceHash: string; agentId: number; expiry: number; nonce: string; destinationDomain: number;
 }
 
 /**
@@ -12,11 +12,13 @@ export interface AttestationJson {
  * version, the transaction, and the receipt hash the contract emitted.
  */
 export interface Receipt {
-  version: 1;
+  version: 2;
   invoiceHash: string;
   payee: string;
   amount: string; // USDC micro-units
   category: string;
+  /** CCTP domain the money was sent to. 26 = Arc itself; anything else was burned here and minted there. */
+  destinationDomain: number;
   policyVersion: string;
   chainId: string;
   policyAddress: string;
@@ -34,7 +36,7 @@ export const attestationToJson = (a: AttestationInput): AttestationJson => ({ ..
 const typed = (a: AttestationJson | AttestationInput) => ({ ...a, amount: BigInt(a.amount), nonce: BigInt(a.nonce) });
 
 export function domainFor(chainId: bigint | string, policyAddress: string): TypedDataDomain {
-  return { name: 'CosignPolicy', version: '1', chainId: BigInt(chainId), verifyingContract: policyAddress };
+  return { name: 'CosignPolicy', version: '2', chainId: BigInt(chainId), verifyingContract: policyAddress };
 }
 
 /** Mirrors the contract: receipt = keccak256(abi.encode(receipt, digest)) over attestations in order, starting at zero. */
@@ -53,11 +55,12 @@ export function buildReceipt(args: {
 }): Receipt {
   const { pkg } = args;
   return {
-    version: 1,
+    version: 2,
     invoiceHash: pkg.req.invoiceHash,
     payee: pkg.req.payee,
     amount: pkg.req.amount.toString(),
     category: pkg.req.category,
+    destinationDomain: pkg.req.destinationDomain,
     policyVersion: args.policyVersion,
     chainId: args.chainId.toString(),
     policyAddress: args.policyAddress,
@@ -88,8 +91,8 @@ export async function replayReceipt(
 
   add('five_roles', atts.length === 5 && new Set(atts.map((x) => x.attestation.role)).size === 5, `${atts.length} attestations, roles ${atts.map((x) => x.attestation.role).join(',')}`);
   add('same_invoice_payee_amount',
-    atts.every((x) => x.attestation.invoiceHash === receipt.invoiceHash && x.attestation.payee.toLowerCase() === receipt.payee.toLowerCase() && x.attestation.amount === receipt.amount),
-    'every attestation binds the receipt\'s invoice, payee and amount');
+    atts.every((x) => x.attestation.invoiceHash === receipt.invoiceHash && x.attestation.payee.toLowerCase() === receipt.payee.toLowerCase() && x.attestation.amount === receipt.amount && x.attestation.destinationDomain === receipt.destinationDomain),
+    'every attestation binds the receipt\'s invoice, payee, amount and destination chain');
   add('all_pass', atts.every((x) => x.attestation.verdict === 1), 'every verdict is PASS');
 
   const releasedAt = Date.parse(receipt.releasedAt) / 1000;
@@ -114,7 +117,7 @@ export async function replayReceipt(
       let who = '';
       try {
         who = verifyTypedData(domain, HUMAN_APPROVAL_TYPES,
-          { invoiceHash: receipt.invoiceHash, payee: receipt.payee, amount: BigInt(receipt.amount), expiry }, '0x' + receipt.humanSig.slice(18));
+          { invoiceHash: receipt.invoiceHash, payee: receipt.payee, amount: BigInt(receipt.amount), destinationDomain: receipt.destinationDomain, expiry }, '0x' + receipt.humanSig.slice(18));
       } catch { /* bad sig */ }
       add('human_signature', who.toLowerCase() === opts.approver.toLowerCase(), `approval signed by ${who || 'nobody valid'}`);
     } else add('human_signature', true, 'a human signature is present (approver address not checked)');

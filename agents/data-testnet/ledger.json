@@ -43,6 +43,19 @@
       "walletSinceDays": 90,
       "category": "production",
       "paidCount": 2
+    },
+    {
+      "id": "meridian",
+      "name": "Meridian Studio",
+      "emailDomain": "meridianstudio.example",
+      "wallet": "0x9c9d39d9bd9def6680555314ea45fef4f5f61ccf",
+      "walletSinceDays": 120,
+      "category": "design",
+      "paidCount": 3,
+      "chains": [
+        "arc",
+        "base sepolia"
+      ]
     }
   ],
   "agreements": [
@@ -94,6 +107,18 @@
       ],
       "expectedTotal": "9.80",
       "remaining": "9.80"
+    },
+    {
+      "ref": "SOW-31",
+      "vendorId": "meridian",
+      "description": "Illustration batches, 150.00 each",
+      "lines": [
+        {
+          "match": "illustration",
+          "rate": "0.15"
+        }
+      ],
+      "remaining": "3.00"
     }
   ],
   "history": [

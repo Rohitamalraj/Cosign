@@ -22,6 +22,7 @@ export const ATTESTATION_TYPES = {
     { name: 'agentId', type: 'uint256' },
     { name: 'expiry', type: 'uint64' },
     { name: 'nonce', type: 'uint256' },
+    { name: 'destinationDomain', type: 'uint32' },
   ],
 };
 
@@ -36,10 +37,12 @@ export interface Attestation {
   agentId: number;
   expiry: number; // unix seconds
   nonce: bigint;
+  /** CCTP domain the money lands on; 26 = Arc itself. */
+  destinationDomain: number;
 }
 
 export function domainFor(chainId: bigint | number, verifyingContract: string): TypedDataDomain {
-  return { name: 'CosignPolicy', version: '1', chainId, verifyingContract };
+  return { name: 'CosignPolicy', version: '2', chainId, verifyingContract };
 }
 
 export const signAttestation = (signer: TypedDataSigner, domain: TypedDataDomain, a: Attestation): Promise<string> =>

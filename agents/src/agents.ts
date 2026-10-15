@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { invoiceHash } from './hash';
+import { ARC_DOMAIN, chainDomain, chainKey, chainLabel } from './chains';
 import {
   findVendorByDomain, findVendorByName, jaccard, lineSignature, normalizeName, tokenize,
   type Agreement, type Ledger, type Vendor,
@@ -188,6 +189,18 @@ export function runVerifier(p: ParsedInvoice, ctx: AgentContext): AgentResult {
     } else {
       checks.push(check('wallet', 'fail', `Payee ${payee} differs from the registered wallet and no verified change request exists.`));
     }
+  }
+
+  // Where the money lands is part of the destination: a vendor registered on Arc must not be paid on another chain.
+  const domain = p.chain ? chainDomain(p.chain) : ARC_DOMAIN;
+  if (domain === null) {
+    checks.push(check('chain', 'warn', `The invoice asks to be paid on "${p.chain}", which Cosign cannot pay on. A human should confirm the chain.`));
+  } else if (domain === ARC_DOMAIN) {
+    checks.push(check('chain', 'pass', 'Settles on Arc.'));
+  } else if ((vendor.chains ?? ['arc']).includes(chainKey(domain))) {
+    checks.push(check('chain', 'pass', `${vendor.name} is registered to be paid on ${chainLabel(domain)}; USDC is burned on Arc and minted there through CCTP.`));
+  } else {
+    checks.push(check('chain', 'fail', `The invoice asks for payment on ${chainLabel(domain)}, but ${vendor.name} is registered for ${(vendor.chains ?? ['arc']).join(', ')} only. A changed chain is a classic redirect.`));
   }
 
   const known = new Set([payee, vendor.wallet, p.changeRequest?.newWallet].filter(Boolean) as string[]);

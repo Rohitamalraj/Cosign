@@ -8,7 +8,7 @@ export type RuleState = 'pass' | 'fail' | 'wait';
 
 export const REQUIRED_ROLES: Role[] = ['READER', 'VERIFIER', 'MATCHER', 'SENTINEL', 'TREASURER'];
 export const PER_TX_LIMIT = 5000;
-export const POLICY_VERSION = 'policy-v0.1.0';
+export const POLICY_VERSION = 'policy-v0.2.0';
 
 export const RULES = [
   { n: 1, label: 'All five roles attested', why: 'Independent agreement, not one opinion' },

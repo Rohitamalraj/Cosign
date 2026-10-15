@@ -4,12 +4,12 @@ import { domainFor } from './receipt';
 
 /** What a human approver signs (in a wallet or the frontend) to release an over-limit payment. */
 export function humanApprovalTypedData(args: {
-  chainId: bigint | string; policyAddress: string; invoiceHash: string; payee: string; amount: bigint; expiry: number;
+  chainId: bigint | string; policyAddress: string; invoiceHash: string; payee: string; amount: bigint; destinationDomain: number; expiry: number;
 }): { domain: TypedDataDomain; types: typeof HUMAN_APPROVAL_TYPES; value: Record<string, unknown> } {
   return {
     domain: domainFor(args.chainId, args.policyAddress),
     types: HUMAN_APPROVAL_TYPES,
-    value: { invoiceHash: args.invoiceHash, payee: args.payee, amount: args.amount, expiry: args.expiry },
+    value: { invoiceHash: args.invoiceHash, payee: args.payee, amount: args.amount, destinationDomain: args.destinationDomain, expiry: args.expiry },
   };
 }
 

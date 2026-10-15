@@ -166,15 +166,15 @@ describe('agents -> contract (end to end)', function () {
       domain,
       { HumanApproval: [
         { name: 'invoiceHash', type: 'bytes32' }, { name: 'payee', type: 'address' },
-        { name: 'amount', type: 'uint256' }, { name: 'expiry', type: 'uint64' },
+        { name: 'amount', type: 'uint256' }, { name: 'destinationDomain', type: 'uint32' }, { name: 'expiry', type: 'uint64' },
       ] },
-      { invoiceHash: r.package.req.invoiceHash, payee: r.package.req.payee, amount: r.package.req.amount, expiry: exp },
+      { invoiceHash: r.package.req.invoiceHash, payee: r.package.req.payee, amount: r.package.req.amount, destinationDomain: r.package.req.destinationDomain, expiry: exp },
     );
     const humanSig = ethers.concat([ethers.toBeHex(exp, 8), sig]);
     expect(await evaluate(r, humanSig)).to.deep.equal([0n, 0n]);
 
     const before = await token.balanceOf(r.package.req.payee);
-    await expect(release(r, humanSig)).to.emit(policy, 'Released').withArgs(r.package.req.invoiceHash, ethers.getAddress(r.package.req.payee), usdc(9800), anyValue, true);
+    await expect(release(r, humanSig)).to.emit(policy, 'Released').withArgs(r.package.req.invoiceHash, ethers.getAddress(r.package.req.payee), usdc(9800), anyValue, true, 26);
     expect(await token.balanceOf(r.package.req.payee)).to.equal(before + usdc(9800));
   });
 

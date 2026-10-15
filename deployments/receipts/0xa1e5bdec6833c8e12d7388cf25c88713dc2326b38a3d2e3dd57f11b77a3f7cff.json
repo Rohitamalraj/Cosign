@@ -1,0 +1,99 @@
+{
+  "version": 2,
+  "invoiceHash": "0xa1e5bdec6833c8e12d7388cf25c88713dc2326b38a3d2e3dd57f11b77a3f7cff",
+  "payee": "0x9c9d39d9bd9def6680555314ea45fef4f5f61ccf",
+  "amount": "750000",
+  "category": "0x31ef7d0e4fc58341c23f689fb30fe779f821c5da9be1f82ead2c59ab0a4986db",
+  "destinationDomain": 6,
+  "policyVersion": "policy-v0.2.0",
+  "chainId": "5042002",
+  "policyAddress": "0x1339aDbA32Ff3C69DD9d9f4ff645525292b43a1B",
+  "txHash": "0xf05c1369ec99326c2548f975a873aa610aa42e3272cf6c33113ca66380619524",
+  "blockNumber": 67208779,
+  "releasedAt": "2026-10-14T19:26:44.000Z",
+  "humanSigned": false,
+  "humanSig": null,
+  "onChainReceiptHash": "0x2e47690386f4b55c5d46fab4d892e15ac29468ded7288a05ee5370399bc92868",
+  "attestations": [
+    {
+      "attestation": {
+        "invoiceHash": "0xa1e5bdec6833c8e12d7388cf25c88713dc2326b38a3d2e3dd57f11b77a3f7cff",
+        "payee": "0x9c9d39d9bd9def6680555314ea45fef4f5f61ccf",
+        "amount": "750000",
+        "role": 0,
+        "verdict": 1,
+        "confidenceBps": 9800,
+        "evidenceHash": "0x18d6f21a5185b0d85142567326a9a040acee5ed6708592930bda5c4f1845b8aa",
+        "agentId": 1,
+        "expiry": 1792009597,
+        "nonce": "1792005997449000000",
+        "destinationDomain": 6
+      },
+      "signature": "0x387444f19756d2e03876a2277e8e931d22a866d8822bd2b2e066fe09224926fb5ac96c7116a256878f5b674f0e224b62809644d4eac47438b0c644f5fdb555491b"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0xa1e5bdec6833c8e12d7388cf25c88713dc2326b38a3d2e3dd57f11b77a3f7cff",
+        "payee": "0x9c9d39d9bd9def6680555314ea45fef4f5f61ccf",
+        "amount": "750000",
+        "role": 1,
+        "verdict": 1,
+        "confidenceBps": 9600,
+        "evidenceHash": "0x0ef2f3d406157ecce2e28c11ef4a6869035333e9647939c211ca9747cebb38e7",
+        "agentId": 2,
+        "expiry": 1792009597,
+        "nonce": "1792005998696000001",
+        "destinationDomain": 6
+      },
+      "signature": "0x92d645d294c2f807647c621f26ab56e91ed8369f2fc3809eacc760c4902f52541acfc9782e54ef2447a4f72b2575af5d7d77a4412079e72815a60b32912369531b"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0xa1e5bdec6833c8e12d7388cf25c88713dc2326b38a3d2e3dd57f11b77a3f7cff",
+        "payee": "0x9c9d39d9bd9def6680555314ea45fef4f5f61ccf",
+        "amount": "750000",
+        "role": 2,
+        "verdict": 1,
+        "confidenceBps": 8500,
+        "evidenceHash": "0x0f679666bdde7906e1f9422b81d8423cfb64e348db0f50297accb7bcfa68c4c7",
+        "agentId": 3,
+        "expiry": 1792009597,
+        "nonce": "1792005999318000002",
+        "destinationDomain": 6
+      },
+      "signature": "0x2f4f2fafc47ff521ab38794efc2f79e0e2c2a08692d58161240b5f9874733efe14762bed9d3ac409b8d665b81d5126b50ebddb5c9b6b1c19e14c72899b8b6a101b"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0xa1e5bdec6833c8e12d7388cf25c88713dc2326b38a3d2e3dd57f11b77a3f7cff",
+        "payee": "0x9c9d39d9bd9def6680555314ea45fef4f5f61ccf",
+        "amount": "750000",
+        "role": 3,
+        "verdict": 1,
+        "confidenceBps": 8500,
+        "evidenceHash": "0xfc72f408a5feb6f5df385f8849f565fd5bdb5d8d3087b44afa7b22f96e1dd1a2",
+        "agentId": 4,
+        "expiry": 1792009597,
+        "nonce": "1792005999960000003",
+        "destinationDomain": 6
+      },
+      "signature": "0x2fa35844059001a04c25b0b39f1cd6469f9d2493a5e2da2247934dd29a3f4f5e7624bbe14942ee4026d0f068fa266c219d32bb5fdbb295353ced0e34e4ddbce61c"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0xa1e5bdec6833c8e12d7388cf25c88713dc2326b38a3d2e3dd57f11b77a3f7cff",
+        "payee": "0x9c9d39d9bd9def6680555314ea45fef4f5f61ccf",
+        "amount": "750000",
+        "role": 4,
+        "verdict": 1,
+        "confidenceBps": 9100,
+        "evidenceHash": "0xa440d0ac99d2a535b207a9c2aedb2a22bc339eff077768f242ee09d551f4863f",
+        "agentId": 5,
+        "expiry": 1792009597,
+        "nonce": "1792006000585000004",
+        "destinationDomain": 6
+      },
+      "signature": "0xa30173bfb3ff7dce7323ea503962e8e645bd7026598ea93e976faa6e29a8a2e46a302731a01318b5f575e1ef8d10a9fbfb8329fe4ec985a2939ec924aa8c2ae71b"
+    }
+  ]
+}

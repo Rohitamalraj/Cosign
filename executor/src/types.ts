@@ -17,11 +17,12 @@ export const attestationSchema = z.object({
   agentId: z.number().int().positive(),
   expiry: z.number().int().positive(),
   nonce: uint,
+  destinationDomain: z.number().int().min(0),
 });
 
 /** Exactly what `CosignPolicy.release` takes. Strictly validated: this crosses a trust boundary on the HTTP path. */
 export const packageSchema = z.object({
-  req: z.object({ invoiceHash: bytes32, payee: address, amount: uint, category: bytes32 }),
+  req: z.object({ invoiceHash: bytes32, payee: address, amount: uint, category: bytes32, destinationDomain: z.number().int().min(0) }),
   atts: z.array(attestationSchema).length(5),
   sigs: z.array(sig).length(5),
   // '0x' (none) or 8-byte expiry + 65-byte signature

@@ -2,8 +2,9 @@
 import { join, resolve } from 'node:path';
 import { initiateDeveloperControlledWalletsClient } from '@circle-fin/developer-controlled-wallets';
 import { Contract, JsonRpcProvider, Wallet, formatUnits } from 'ethers';
+import { loadRelayerKey } from './relayer';
 import {
-  CircleSigner, CircleSubmitter, Executor, FileStore, POLICY_ABI, REGISTRY_ABI, humanApprovalTypedData, packHumanSig, replayReceipt,
+  CCTP_DESTINATIONS, CctpSettler, CircleSigner, CircleSubmitter, Executor, FileSettlementStore, FileStore, POLICY_ABI, REGISTRY_ABI, humanApprovalTypedData, packHumanSig, replayReceipt,
   type ReleaseOutcome,
 } from '../src';
 
@@ -48,20 +49,29 @@ async function main() {
   const log: unknown[] = [];
   const show = (o: ReleaseOutcome) => (o.status === 'RELEASED' || o.status === 'ALREADY_RELEASED' ? `${o.status} ${EXPLORER}/tx/${o.txHash}` : o.status === 'HELD' ? `HELD rule ${o.rule}: ${o.reason}` : `PENDING ${o.txHash}`);
 
+  // COSIGN_CASES=F,G runs only those cases (and writes deployments/onchain-demo-<cases>.json), so a partial run never overwrites the full one.
+  const only = process.env.COSIGN_CASES?.split(',').map((x) => x.trim().toUpperCase());
+  const settler = new CctpSettler(new FileSettlementStore(join(process.cwd(), 'store-arc')), {
+    signerFor: (d) => new Wallet(loadRelayerKey(), new JsonRpcProvider(d.rpcUrl)),
+    intervalMs: 15_000, attestTimeoutMs: Number(process.env.COSIGN_ATTEST_TIMEOUT_MS ?? 25 * 60_000),
+  });
+
   for (const c of agents.DEMO_CASES) {
+    if (only && !only.includes(c.id)) continue;
     console.log(`\n=== Case ${c.id}: ${c.title}`);
     const r = await agents.processInvoice(agents.readDemoInvoice(c.file), ledger, cfg, signers);
     console.log('  agents:', agents.ROLE_ORDER.map((role) => `${role.slice(0, 3)}:${r.results[role]!.verdict}`).join(' '), '->', r.decision);
     if (!r.package) { console.log('  no package'); log.push({ case: c.id, decision: r.decision }); continue; }
 
     const payee = r.package.req.payee;
-    const before = await bal(payee);
+    const domain = r.package.req.destinationDomain;
+    const before = domain === 26 ? await bal(payee) : 0;
     let out = await executor.release(r.package);
     console.log('  executor:', show(out));
 
     if (c.id === 'E' && out.status === 'HELD') {
       const expiry = Math.floor(Date.now() / 1000) + 3600;
-      const td = humanApprovalTypedData({ chainId: 5042002n, policyAddress: dep.policy, invoiceHash: r.package.req.invoiceHash, payee, amount: r.package.req.amount, expiry });
+      const td = humanApprovalTypedData({ chainId: 5042002n, policyAddress: dep.policy, invoiceHash: r.package.req.invoiceHash, payee, amount: r.package.req.amount, destinationDomain: r.package.req.destinationDomain, expiry });
       const humanSig = packHumanSig(expiry, await approver.signTypedData(td.domain, td.types, td.value));
       out = await executor.release({ ...r.package, humanSig });
       console.log('  after human approval:', show(out));
@@ -75,18 +85,27 @@ async function main() {
       writeFileSync(join(ROOT, 'deployments', 'receipts', `${r.package.req.invoiceHash}.json`), JSON.stringify(out.receipt, null, 2) + '\n');
       if (c.id === 'A') agents.recordPaid(ledger, r.parsed, r.invoiceHash!, 'northwind'); // so the Sentinel can catch case B
     }
-    const after = await bal(payee);
-    console.log(`  payee USDC ${before} -> ${after}`);
+    let settlement: unknown = null;
+    if (domain !== 26 && (out.status === 'RELEASED' || out.status === 'ALREADY_RELEASED')) {
+      console.log(`  burned on Arc; waiting for Circle's attestation, then minting on ${CCTP_DESTINATIONS[domain].name}...`);
+      try {
+        const st = await settler.settle({ invoiceHash: r.package.req.invoiceHash, burnTx: out.txHash, destinationDomain: domain, payee, amount: r.package.req.amount });
+        settlement = st;
+        console.log('  settlement:', st.state, st.mintTx ? `${CCTP_DESTINATIONS[domain].explorer}/tx/${st.mintTx}` : '');
+      } catch (e) { console.log('  settlement incomplete:', (e as Error).message); settlement = { state: 'INCOMPLETE', error: (e as Error).message }; }
+    }
+    const after = domain === 26 ? await bal(payee) : 0;
+    console.log(domain === 26 ? `  payee USDC ${before} -> ${after}` : '  payee paid on another chain (see settlement)');
     log.push({
       case: c.id, title: c.title, invoice: r.parsed.invoiceNumber, amountUsdc: Number(r.package.req.amount) / 1e6, decision: r.decision,
       verdicts: Object.fromEntries(agents.ROLE_ORDER.map((role) => [role, r.results[role]!.verdict])),
       executor: out.status, rule: out.status === 'HELD' ? out.rule : undefined, reason: out.status === 'HELD' ? out.reason : undefined,
       txHash: 'txHash' in out ? out.txHash : undefined, explorer: 'txHash' in out ? `${EXPLORER}/tx/${out.txHash}` : undefined,
-      invoiceHash: r.package.req.invoiceHash, payee, payeeUsdcBefore: before, payeeUsdcAfter: after, receiptReplayOk: replay?.ok ?? null,
+      invoiceHash: r.package.req.invoiceHash, payee, payeeUsdcBefore: before, payeeUsdcAfter: after, receiptReplayOk: replay?.ok ?? null, destinationDomain: domain, settlement,
     });
   }
 
-  writeFileSync(join(ROOT, 'deployments', 'onchain-demo.json'), JSON.stringify({ network: 'arc-testnet', policy: dep.policy, ranAt: new Date().toISOString(), cases: log }, null, 2) + '\n');
+  writeFileSync(join(ROOT, 'deployments', only ? `onchain-demo-${only.join('').toLowerCase()}.json` : 'onchain-demo.json'), JSON.stringify({ network: 'arc-testnet', policy: dep.policy, policyVersion: dep.policyVersion, ranAt: new Date().toISOString(), cases: log }, null, 2) + '\n');
   console.log('\nwrote deployments/onchain-demo.json');
   void copyFileSync;
 }

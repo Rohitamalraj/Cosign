@@ -7,6 +7,7 @@ export * from './pipeline';
 export * from './llm';
 export * from './keys';
 export * from './eip712';
+export * from './chains';
 export { ledgerFromJson, recordPaid, type Ledger } from './ledger';
 export { fmtMicro, parseMicro } from './money';
 
@@ -25,4 +26,6 @@ export const DEMO_CASES = [
   { id: 'C', file: 'case-c-wallet-change.txt', title: 'Wallet change email' },
   { id: 'D', file: 'case-d-injection.txt', title: 'Prompt injection' },
   { id: 'E', file: 'case-e-over-limit.txt', title: 'Over the limit' },
+  { id: 'F', file: 'case-f-cross-chain.txt', title: 'Pay a vendor on Base (CCTP)' },
+  { id: 'G', file: 'case-g-chain-swap.txt', title: 'Chain swap' },
 ] as const;

@@ -13,8 +13,8 @@ import type { Executor } from '../src/executor';
 const H = '0x' + 'ab'.repeat(32);
 const ADDR = '0x' + '11'.repeat(20);
 const SIG = '0x' + '22'.repeat(65);
-const att = (role: number) => ({ invoiceHash: H, payee: ADDR, amount: '1250000000', role, verdict: 1, confidenceBps: 9300, evidenceHash: H, agentId: role + 1, expiry: 2_000_000_000, nonce: String(role + 1) });
-const goodPkg = () => ({ req: { invoiceHash: H, payee: ADDR, amount: '1250000000', category: H }, atts: [0, 1, 2, 3, 4].map(att), sigs: Array(5).fill(SIG), humanSig: '0x' });
+const att = (role: number) => ({ invoiceHash: H, payee: ADDR, amount: '1250000000', role, verdict: 1, confidenceBps: 9300, evidenceHash: H, agentId: role + 1, expiry: 2_000_000_000, nonce: String(role + 1), destinationDomain: 26 });
+const goodPkg = () => ({ req: { invoiceHash: H, payee: ADDR, amount: '1250000000', category: H, destinationDomain: 26 }, atts: [0, 1, 2, 3, 4].map(att), sigs: Array(5).fill(SIG), humanSig: '0x' });
 
 describe('package validation (this crosses a trust boundary)', () => {
   it('accepts a well-formed package and converts amounts to bigint', () => {

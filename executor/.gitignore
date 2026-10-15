@@ -4,3 +4,5 @@ store
 .env.*
 circle-wallets.local.json
 store-arc
+
+*.local.json

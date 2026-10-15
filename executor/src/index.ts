@@ -2,6 +2,7 @@ import { Contract, JsonRpcProvider, Wallet } from 'ethers';
 import { POLICY_ABI } from './abi';
 
 export * from './abi';
+export * from './cctp';
 export * from './circle';
 export * from './submitter';
 export * from './executor';

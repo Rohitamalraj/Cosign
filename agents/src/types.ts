@@ -25,6 +25,8 @@ export interface ParsedInvoice {
   agreementRef: string | null;
   currency: string | null;
   payee: string | null; // lowercase 0x address
+  /** Settlement chain named on the invoice ("Base Sepolia"), or null meaning Arc. */
+  chain: string | null;
   totalMicro: bigint | null;
   lineItems: LineItem[];
   terms: string | null;

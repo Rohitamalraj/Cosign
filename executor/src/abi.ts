@@ -1,5 +1,5 @@
-const ATT = '(bytes32 invoiceHash,address payee,uint256 amount,uint8 role,uint8 verdict,uint16 confidenceBps,bytes32 evidenceHash,uint256 agentId,uint64 expiry,uint256 nonce)';
-const REQ = '(bytes32 invoiceHash,address payee,uint256 amount,bytes32 category)';
+const ATT = '(bytes32 invoiceHash,address payee,uint256 amount,uint8 role,uint8 verdict,uint16 confidenceBps,bytes32 evidenceHash,uint256 agentId,uint64 expiry,uint256 nonce,uint32 destinationDomain)';
+const REQ = '(bytes32 invoiceHash,address payee,uint256 amount,bytes32 category,uint32 destinationDomain)';
 
 /** The slice of the CosignPolicy ABI the Executor needs. A contracts test checks the selectors match the compiled artifact. */
 export const POLICY_ABI = [
@@ -7,7 +7,7 @@ export const POLICY_ABI = [
   `function evaluate(${REQ} req, ${ATT}[] atts, bytes[] sigs, bytes humanSig) view returns (uint8 rule, uint8 detail)`,
   'function paid(bytes32) view returns (bool)',
   'function POLICY_VERSION() view returns (string)',
-  'event Released(bytes32 indexed invoiceHash, address indexed payee, uint256 amount, bytes32 receiptHash, bool humanSigned)',
+  'event Released(bytes32 indexed invoiceHash, address indexed payee, uint256 amount, bytes32 receiptHash, bool humanSigned, uint32 destinationDomain)',
   'error RuleFailed(uint8 rule, uint8 detail)',
   'error NotExecutor()',
 ];
@@ -37,6 +37,7 @@ export const ATTESTATION_TYPES = {
     { name: 'agentId', type: 'uint256' },
     { name: 'expiry', type: 'uint64' },
     { name: 'nonce', type: 'uint256' },
+    { name: 'destinationDomain', type: 'uint32' },
   ],
 };
 
@@ -45,6 +46,7 @@ export const HUMAN_APPROVAL_TYPES = {
     { name: 'invoiceHash', type: 'bytes32' },
     { name: 'payee', type: 'address' },
     { name: 'amount', type: 'uint256' },
+    { name: 'destinationDomain', type: 'uint32' },
     { name: 'expiry', type: 'uint64' },
   ],
 };
