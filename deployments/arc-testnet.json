@@ -14,7 +14,7 @@
     "policy": "https://explorer.testnet.arc.io/address/0x1339aDbA32Ff3C69DD9d9f4ff645525292b43a1B"
   },
   "executor": "0x70d2a957393bae93d7b93c44e2eea417fec47818",
-  "approver": "0x4B15A4A4b0Bb94eEbB1037A6d2A3bB4b4664121b",
+  "approver": "0xA764e93B30D4C8A42D604bAc892e803cc108bb3A",
   "screener": "0xeaabe122860e6166a7c5938dbfafe0b490149354",
   "agents": {
     "READER": {
