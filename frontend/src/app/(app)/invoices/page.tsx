@@ -188,6 +188,7 @@ export default function Invoices() {
               <dl className="grid shrink-0 grid-cols-2 gap-x-8 gap-y-2 font-mono text-[12px]">
                 <dt className="text-cement">Amount</dt><dd>{usd(inv.amount)} USDC</dd>
                 <dt className="text-cement">Payee</dt><dd title={inv.payeeFull}>{inv.payee}</dd>
+                <dt className="text-cement">Settles on</dt><dd>{inv.chain ?? 'Arc'}{inv.chain && inv.chain !== 'Arc' ? ' via CCTP' : ''}</dd>
                 <dt className="text-cement">invoiceHash</dt><dd title={inv.hashFull}>{inv.hash}</dd>
                 <dt className="text-cement">Status</dt><dd><StatusPill s={inv.status} />{inv.simulated && <SimTag />}</dd>
               </dl>

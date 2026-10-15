@@ -1,6 +1,7 @@
 import { Contract, Interface, formatUnits, type Provider } from 'ethers';
 import { POLICY_ABI, REGISTRY_READ_ABI } from './abi';
 import { replayReceipt, type ReplayCheck, type Receipt } from './receipt';
+import { verifySettlement, type CctpDestination, type Settlement } from './cctp';
 
 /**
  * Keyless verification: re-check a recorded run straight from a chain's RPC. It needs no API key, no wallet and no
@@ -25,6 +26,18 @@ export interface RecordedCase {
   amountUsdc: number;
   verdicts?: Record<string, string>;
   reason?: string;
+  /** CCTP domain the payment was sent to. Absent or 26 means Arc itself. */
+  destinationDomain?: number;
+  /** The Executor's record of the cross-chain leg (burn -> mint). Re-checked against both chains. */
+  settlement?: Partial<Settlement> | null;
+}
+
+/** What verifyRun needs to re-check the destination chain of a cross-chain payment. */
+export interface CrossChainVerifier {
+  dest: Provider;
+  destination: CctpDestination;
+  tokenMessenger: string;
+  destUsdc: string;
 }
 
 export interface CaseVerification {
@@ -45,7 +58,7 @@ export interface RunVerification {
 const releasedIface = new Interface(POLICY_ABI);
 const ERC20 = ['function balanceOf(address) view returns (uint256)'];
 
-export async function verifyRun(provider: Provider, dep: Deployment, cases: RecordedCase[], receipts: Receipt[]): Promise<RunVerification> {
+export async function verifyRun(provider: Provider, dep: Deployment, cases: RecordedCase[], receipts: Receipt[], cross?: CrossChainVerifier): Promise<RunVerification> {
   const policy = new Contract(dep.policy, POLICY_ABI, provider);
   const registry = new Contract(dep.registry, REGISTRY_READ_ABI, provider);
   const usdc = new Contract(dep.usdc, ERC20, provider);
@@ -67,15 +80,29 @@ export async function verifyRun(provider: Provider, dep: Deployment, cases: Reco
       add('released_event', !!ev && ev.args.invoiceHash === c.invoiceHash, ev ? `Released ${formatUnits(ev.args.amount, 6)} USDC, humanSigned=${ev.args.humanSigned}` : 'no Released event from the policy contract');
       if (ev) add('amount', Number(formatUnits(ev.args.amount, 6)) === c.amountUsdc, `on-chain ${formatUnits(ev.args.amount, 6)} vs recorded ${c.amountUsdc}`);
       add('in_paid_set', paid, paid ? 'the contract\'s paid set contains this invoice' : 'not in the paid set');
-      const bal = Number(formatUnits(await usdc.balanceOf(c.payee), 6));
-      add('payee_funded', bal >= c.amountUsdc, `payee holds ${bal} USDC now`);
+      const domain = c.destinationDomain ?? 26;
+      if (domain === 26) {
+        const bal = Number(formatUnits(await usdc.balanceOf(c.payee), 6));
+        add('payee_funded', bal >= c.amountUsdc, `payee holds ${bal} USDC now`);
+      } else {
+        // Paid on another chain: the policy burned USDC on Arc through CCTP, and Circle mints it for the payee there.
+        if (ev) add('destination_domain', Number(ev.args.destinationDomain) === domain, `released to CCTP domain ${ev.args.destinationDomain}`);
+        const st = c.settlement as Settlement | null | undefined;
+        if (st?.state === 'MINTED' && st.mintTx && cross) {
+          const res = await verifySettlement({ arc: provider, dest: cross.dest, destination: cross.destination, settlement: st, tokenMessenger: cross.tokenMessenger, usdc: dep.usdc, destUsdc: cross.destUsdc });
+          for (const k of res.checks) add(k.name, k.ok, k.detail);
+        } else {
+          // Not an error: the money is burned (it cannot be spent twice) and the mint is a separate, permissionless step.
+          add('mint_pending', true, 'burned on Arc; the mint on the destination chain has not been recorded yet');
+        }
+      }
     } else {
       add('not_paid', !paid, paid ? 'UNEXPECTED: this invoice is in the paid set' : 'the invoice is not in the paid set: nothing was paid');
     }
     const ok = checks.every((x) => x.ok);
     out.push({
       case: c.case, ok, kind: released ? 'paid' : 'held', checks,
-      summary: released ? (ok ? 'verified on-chain' : 'MISMATCH with the chain') : (ok ? 'held, nothing paid' : 'MISMATCH: was paid'),
+      summary: released ? (ok ? (checks.some((x) => x.name === 'mint_pending') ? 'burn verified on-chain; mint pending' : 'verified on-chain') : 'MISMATCH with the chain') : (ok ? 'held, nothing paid' : 'MISMATCH: was paid'),
     });
   }
 

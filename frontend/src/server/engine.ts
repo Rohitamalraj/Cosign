@@ -13,7 +13,7 @@ import type { Invoice, RuleState } from '@/lib/data';
 process.env.COSIGN_AGENTS_DATA ??= resolve(process.cwd(), '..', 'agents', 'data');
 
 import {
-  DEMO_CASES, loadAgentKeys, llmConfigFromEnv, loadDemoLedger, processInvoice, readDemoInvoice, recordPaid, ROLE_ORDER,
+  ARC_DOMAIN, DEMO_CASES, chainDomain, chainLabel, loadAgentKeys, llmConfigFromEnv, loadDemoLedger, processInvoice, readDemoInvoice, recordPaid, ROLE_ORDER,
   type Ledger, type ProcessResult, type RoleName,
 } from '../../../agents/src';
 import { findVendorByDomain, findVendorByName } from '../../../agents/src/ledger';
@@ -105,6 +105,7 @@ export function toInvoice(r: ProcessResult, text: string, ledger: Ledger, caseId
     category: vendor ? vendor.category[0].toUpperCase() + vendor.category.slice(1) : 'Uncategorized',
     received: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     due: fmtDate(p.due),
+    chain: chainLabel(p.chain ? (chainDomain(p.chain) ?? ARC_DOMAIN) : ARC_DOMAIN),
     payee: p.payee ? short(p.payee) : '—',
     payeeFull: p.payee ?? undefined,
     hash: r.invoiceHash ? short(r.invoiceHash) : '—',

@@ -92,7 +92,7 @@ async function main() {
         const st = await settler.settle({ invoiceHash: r.package.req.invoiceHash, burnTx: out.txHash, destinationDomain: domain, payee, amount: r.package.req.amount });
         settlement = st;
         console.log('  settlement:', st.state, st.mintTx ? `${CCTP_DESTINATIONS[domain].explorer}/tx/${st.mintTx}` : '');
-      } catch (e) { console.log('  settlement incomplete:', (e as Error).message); settlement = { state: 'INCOMPLETE', error: (e as Error).message }; }
+      } catch (e) { console.log('  settlement incomplete:', (e as Error).message); settlement = { state: 'INCOMPLETE', error: (e as Error).message.replace(/\(transaction=.*$/s, '').slice(0, 200) }; }
     }
     const after = domain === 26 ? await bal(payee) : 0;
     console.log(domain === 26 ? `  payee USDC ${before} -> ${after}` : '  payee paid on another chain (see settlement)');

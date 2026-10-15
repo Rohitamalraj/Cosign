@@ -2,18 +2,27 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { JsonRpcProvider } from 'ethers';
 import { readAgentState, verifyRun, type Deployment, type RecordedCase } from '../src/verify';
+import { CCTP_DESTINATIONS } from '../src/cctp';
+import { existsSync } from 'node:fs';
 import type { Receipt } from '../src/receipt';
 
-/** Re-check deployments/onchain-demo.json against the Arc testnet RPC. Needs no keys. Exit code 1 on any mismatch. */
+/** Re-check every recorded run against the CURRENT policy (deployments/onchain-demo*.json) from chain state. Needs no keys. Exit code 1 on any mismatch. */
 async function main() {
   const dir = resolve(process.cwd(), '..', 'deployments');
   const dep = JSON.parse(readFileSync(join(dir, 'arc-testnet.json'), 'utf8'));
-  const demo = JSON.parse(readFileSync(join(dir, 'onchain-demo.json'), 'utf8')) as { cases: RecordedCase[] };
-  const receipts = readdirSync(join(dir, 'receipts')).map((f) => JSON.parse(readFileSync(join(dir, 'receipts', f), 'utf8')) as Receipt);
+  const cases: RecordedCase[] = [];
+  for (const f of readdirSync(dir).filter((x) => /^onchain-demo.*\.json$/.test(x))) {
+    const run = JSON.parse(readFileSync(join(dir, f), 'utf8')) as { policy: string; cases: RecordedCase[] };
+    if (run.policy?.toLowerCase() === dep.policy.toLowerCase()) cases.push(...run.cases);
+  }
+  const demo = { cases };
+  const receipts = readdirSync(join(dir, 'receipts')).filter((f) => existsSync(join(dir, 'receipts', f)) && f.endsWith('.json')).map((f) => JSON.parse(readFileSync(join(dir, 'receipts', f), 'utf8')) as Receipt);
   const provider = new JsonRpcProvider('https://rpc.testnet.arc.io');
   const d: Deployment = { chainId: dep.chainId, usdc: dep.usdc, registry: dep.registry, policy: dep.policy, approver: dep.approver };
 
-  const res = await verifyRun(provider, d, demo.cases, receipts);
+  const base = CCTP_DESTINATIONS[6];
+  const cross = { dest: new JsonRpcProvider(base.rpcUrl), destination: base, tokenMessenger: dep.tokenMessenger ?? '', destUsdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' };
+  const res = await verifyRun(provider, d, demo.cases, receipts, cross);
   for (const c of res.cases) {
     console.log(`Case ${c.case}: ${c.summary}`);
     for (const k of c.checks) console.log(`    ${k.ok ? 'ok  ' : 'FAIL'} ${k.name}: ${k.detail}`);

@@ -11,6 +11,8 @@ const proves: Record<string, string> = {
   C: 'Wallet-swap fraud is held by cooling-off and challenge.',
   D: 'Prompt injection in invoice text is read as data and never followed.',
   E: 'Bounded autonomy: a human signs above the limit.',
+  F: 'Cross-chain: all five agents sign the destination, and the contract burns USDC on Arc for a mint on Base through CCTP.',
+  G: 'Chain swap: a vendor registered for Arc asks to be paid on another chain, and the Verifier holds it.',
 };
 
 const stepLabels = ['Invoice in', 'Reader', 'Verifier', 'Matcher', 'Sentinel', 'Treasurer', 'Contract', 'Outcome'];
@@ -46,8 +48,8 @@ export default function Demo() {
   if (!inv) {
     return (
       <>
-        <PageHeader eyebrow="Five scripted cases" title="Watch the contract hold on every attack." />
-        <Card><p className="text-ink/60">{loading ? 'The agents are reading the five demo invoices…' : 'No demo cases found. Use "Reset demo" in the invoice inbox.'}</p></Card>
+        <PageHeader eyebrow="Seven scripted cases" title="Watch the contract hold on every attack." />
+        <Card><p className="text-ink/60">{loading ? 'The agents are reading the demo invoices…' : 'No demo cases found. Use "Reset demo" in the invoice inbox.'}</p></Card>
       </>
     );
   }
@@ -60,12 +62,12 @@ export default function Demo() {
   return (
     <>
       <PageHeader
-        eyebrow="Five scripted cases"
+        eyebrow="Seven scripted cases"
         title="Watch the contract hold on every attack."
-        sub="These are the real agents' verdicts on five scripted invoices, replayed step by step: the five attestations, then what the eight contract rules would do."
+        sub="These are the real agents' verdicts on seven scripted invoices, replayed step by step: the five attestations, then what the eight contract rules would do."
       />
 
-      <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         {cases.map((c) => (
           <button
             key={c.caseId}

@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  contracts:
+    name: Contracts (policy, registry, treasury, CCTP, invariants)
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: contracts } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: contracts/package-lock.json }
+      - run: npm ci
+      # The end-to-end tests also import ../agents and ../executor, so install those first.
+      - run: npm ci --prefix ../agents
+      - run: npm ci --prefix ../executor
+      - run: npx hardhat test
+
+  agents:
+    name: Agents
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: agents } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: agents/package-lock.json }
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test
+
+  executor:
+    name: Executor
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: executor } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: executor/package-lock.json }
+      - run: npm ci
+      - run: npm ci --prefix ../agents
+      - run: npx tsc --noEmit
+      - run: npm test
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+      - run: npm ci --prefix ../agents
+      - run: npm ci --prefix ../executor
+      - run: npx next build
+
+  secrets:
+    name: No secrets in the repo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject private-key-shaped strings and env files
+        run: |
+          if git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v '\.example$'; then echo "env file committed"; exit 1; fi
+          if git grep -nIE '(PRIVATE_KEY|ENTITY_SECRET|API_KEY)\s*=\s*[A-Za-z0-9:_-]{16,}' -- . ':!*.md' ':!*.example'; then echo "secret-shaped value committed"; exit 1; fi
+          if git grep -nIE '0x[0-9a-fA-F]{64}\b' -- '*.ts' '*.js' '*.tsx' | grep -iE 'priv|secret|mnemonic'; then echo "possible raw key"; exit 1; fi
+          echo "ok"

@@ -1,0 +1,12 @@
+# Render blueprint: a free Docker web service. Set COSIGN_AGENT_MNEMONIC in the dashboard (it is not stored in git).
+services:
+  - type: web
+    name: cosign
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/samples
+    envVars:
+      - key: COSIGN_AGENT_MNEMONIC
+        sync: false
+      - key: ARC_TESTNET_RPC_URL
+        value: https://rpc.testnet.arc.io

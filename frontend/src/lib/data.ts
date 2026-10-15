@@ -41,7 +41,9 @@ export interface Invoice {
   /** Unique key: the full invoice hash. `id` is the human-facing invoice number and is not unique. */
   uid: string;
   id: string;
-  caseId?: 'A' | 'B' | 'C' | 'D' | 'E';
+  caseId?: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
+  /** Chain the payment settles on ("Arc", or e.g. "Base Sepolia" via CCTP). */
+  chain?: string;
   payeeFull?: string;
   hashFull?: string;
   /** Per-agent deterministic checks and model traces, straight from the agents. */

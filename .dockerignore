@@ -1,0 +1,14 @@
+**/node_modules
+**/.next
+**/.env
+**/.env.*
+!**/.env.example
+**/*.local.json
+**/.testnet-vendor-keys.local.json
+executor/store-arc
+contracts
+.git
+.github
+docs
+*.pdf
+frontend/.data

@@ -79,9 +79,9 @@ The dashboard then shows the real partner count and the before/after chart. Do n
 | Question | Answer | Where it comes from |
 | --- | --- | --- |
 | Businesses onboarded | _count of consenting partners_ | `traction.json` |
-| Value moved | _sum of `usdcVolume`, labelled testnet_, plus the 11.05 USDC of the scripted on-chain run, labelled as scripted | `traction.json`, `deployments/onchain-demo.json` |
+| Value moved | _sum of `usdcVolume`, labelled testnet_, plus the test USDC of the scripted on-chain runs (first run: 11.05 USDC, archived in `deployments/archive/v0.1`; current runs in `deployments/onchain-demo*.json`), labelled as scripted | `traction.json`, `deployments/` |
 | Problems solved | duplicate / near-duplicate caught, wallet-swap held, injection ignored, over-limit escalated, each with a transaction or receipt | `/onchain` page |
-| Real vs seeded | Real: partner invoices. Seeded: the five scripted cases and the Auditor's slash event | be explicit |
+| Real vs seeded | Real: partner invoices. Seeded: the seven scripted cases and the Auditor's slash event | be explicit |
 | Network | Arc testnet, test USDC | |
 
 Judges discount synthetic data, so the clearest honest statement wins: *"N real users, M real invoices, X test USDC. The five attack cases are scripted and labelled as such."*

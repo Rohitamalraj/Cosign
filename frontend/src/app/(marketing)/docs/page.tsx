@@ -21,7 +21,7 @@ const lifecycle = [
   ['Verifier', 'Checks vendor identity and destination wallet: screening, history, change-of-address rules.'],
   ['Matcher', 'Compares the invoice to the contract, purchase order and delivery proof.'],
   ['Sentinel', 'Checks for duplicates, near-duplicates, amount drift and look-alike vendors.'],
-  ['Treasurer', 'Chooses the payment day: early-pay discount against cash on hand, USYC redemption is planned, not built.'],
+  ['Treasurer', 'Chooses the payment day: early-pay discount against cash on hand, parks idle cash in USYC through a treasury contract (tested against a mock; live use needs Circle’s entitlement).'],
   ['Policy contract', 'Verifies all signed attestations, the quorum and the limits.'],
   ['Executor', 'Sends USDC on Arc from the policy wallet. A receipt bundles attestations, evidence and the transaction hash.'],
   ['Auditor', 'Reconciles the payment to the invoice and ledger, then writes outcomes that update reputation.'],
@@ -154,7 +154,7 @@ export default function Docs() {
             The contract only guarantees that the required checks happened and agreed. Cosign does not claim regulatory certification.
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
-            <Link href="/demo" className="btn-solid">Replay the five cases</Link>
+            <Link href="/demo" className="btn-solid">Replay the seven cases</Link>
             <Link href="/dashboard" className="btn-ghost">Open the app</Link>
           </div>
         </article>

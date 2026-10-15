@@ -23,8 +23,8 @@ const integrations = [
   ['Arc and USDC', 'Settlement and gas are both USDC. The policy contract and registry are deployed and verifiable.', 'live'],
   ['Circle Wallets', 'Custody for every agent signing key and for the Executor. No raw private key in our process.', 'live'],
   ['Policy contract', 'Eight release rules, enforced on-chain. Re-check every result from the chain itself.', 'live'],
-  ['USYC', 'The Treasurer parks idle cash and redeems it when short. Needs contract changes.', 'next'],
-  ['CCTP', 'Pay vendors that settle on another chain, with the same receipt format.', 'next'],
+  ['CCTP', 'Pay a vendor on another chain: all five agents sign the destination, the policy burns USDC on Arc, Circle attests, and the mint lands on Base Sepolia. Checked from chain state.', 'live'],
+  ['USYC', 'A treasury contract parks idle cash in USYC on a Treasurer order and redeems it back to the policy. Tested against a mock Teller; live use waits for Circle’s entitlement.', 'built'],
   ['ERC-8004', 'Our registry is modelled on it. Portable identity across chains is future work.', 'next'],
 ];
 
@@ -96,7 +96,7 @@ export default function Landing() {
               <Reveal delay={0.55} y={16}>
                 <div className="mt-10 flex flex-wrap items-center justify-center gap-4 min-[1200px]:justify-start">
                   <HandleButton href="/dashboard">Open the app</HandleButton>
-                  <Link href="/demo" className="border border-ink/25 bg-white/70 px-5 py-3 text-[15px] leading-none transition-colors hover:border-ink">Watch the five cases</Link>
+                  <Link href="/demo" className="border border-ink/25 bg-white/70 px-5 py-3 text-[15px] leading-none transition-colors hover:border-ink">Watch the seven cases</Link>
                 </div>
               </Reveal>
             </div>
@@ -197,7 +197,7 @@ export default function Landing() {
         <Section id="stack" className="pt-28">
           <Reveal>
             <Title serif="Built on Circle" bold="where it earns its place" />
-            <p className="mx-auto mt-5 max-w-xl text-center text-ink/70">Three pieces are live on Arc testnet today. The rest is on the roadmap, and we don’t claim it.</p>
+            <p className="mx-auto mt-5 max-w-xl text-center text-ink/70">Four pieces are live on Arc testnet today. One more is built and waiting on Circle access. The rest is on the roadmap, and we don’t claim it.</p>
           </Reveal>
           <Stagger className="mt-12 grid gap-px border border-ink/15 bg-ink/15 md:grid-cols-3" gap={0.07}>
             {integrations.map(([n, d, status], i) => (
@@ -207,7 +207,7 @@ export default function Landing() {
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="font-mono text-[11px] text-cement">0{i + 1}</p>
-                  <span className={`border px-1.5 font-mono text-[10px] uppercase tracking-[0.08em] ${status === 'live' ? 'border-jade/70 bg-jade/15 text-[#2c6b57]' : 'border-ink/20 text-cement'}`}>{status === 'live' ? 'Live on testnet' : 'Roadmap'}</span>
+                  <span className={`border px-1.5 font-mono text-[10px] uppercase tracking-[0.08em] ${status === 'live' ? 'border-jade/70 bg-jade/15 text-[#2c6b57]' : status === 'built' ? 'border-violet/50 bg-lilac/30 text-violet' : 'border-ink/20 text-cement'}`}>{status === 'live' ? 'Live on testnet' : status === 'built' ? 'Built, not live' : 'Roadmap'}</span>
                 </div>
                 <p className="mt-2 text-ink/70">{d}</p>
               </StaggerItem>

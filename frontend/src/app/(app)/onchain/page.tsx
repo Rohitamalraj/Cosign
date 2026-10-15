@@ -47,7 +47,7 @@ export default function OnChain() {
           </Card>
 
           <Card className="mb-4">
-            <h2 className="h2 mb-1">The five cases, as run on-chain</h2>
+            <h2 className="h2 mb-1">The cases, as run on-chain</h2>
             <p className="mb-4 text-[13px] text-ink/60">The agents signed through Circle wallets; the Executor sent through a Circle wallet. Held cases sent no transaction.</p>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[820px] text-left">
@@ -65,7 +65,18 @@ export default function OnChain() {
                       <td className="px-3 py-3 text-[13px]">
                         {c.executor === 'HELD'
                           ? <span className="text-[#8e2e2a]">Held{c.reason ? `: ${c.reason.split(':')[0]}` : ''}</span>
-                          : <a className="text-violet underline" href={`${EXPLORER}/tx/${c.txHash}`} target="_blank" rel="noreferrer">Paid · {short(c.txHash ?? '')}</a>}
+                          : c.destinationDomain && c.destinationDomain !== 26
+                            ? (
+                              <>
+                                <a className="text-violet underline" href={`${EXPLORER}/tx/${c.txHash}`} target="_blank" rel="noreferrer">Burned on Arc · {short(c.txHash ?? '')}</a>
+                                <div className="mt-1 text-[12px] text-ink/60">
+                                  {c.settlement?.state === 'MINTED' && c.settlement.mintTx
+                                    ? <>Minted on Base Sepolia · <a className="text-violet underline" href={`https://sepolia.basescan.org/tx/${c.settlement.mintTx}`} target="_blank" rel="noreferrer">{short(c.settlement.mintTx)}</a></>
+                                    : 'Mint on Base Sepolia not completed yet'}
+                                </div>
+                              </>
+                            )
+                            : <a className="text-violet underline" href={`${EXPLORER}/tx/${c.txHash}`} target="_blank" rel="noreferrer">Paid · {short(c.txHash ?? '')}</a>}
                       </td>
                       <td className="px-3 py-3 text-[12px]">
                         {c.verification ? <span className={c.verification.ok ? 'text-[#2c6b57]' : 'text-[#8e2e2a]'}>{c.verification.ok ? '✓ ' : '✗ '}{c.verification.summary}</span> : <span className="text-ink/40">not checked</span>}
