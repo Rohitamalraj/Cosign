@@ -78,7 +78,7 @@ export class CircleSubmitter implements Submitter {
       ] as unknown as never,
       fee: { type: 'level', config: { feeLevel: this.feeLevel } },
       refId: idempotencyKey,
-      idempotencyKey: idempotencyUuid(idempotencyKey),
+      idempotencyKey: idempotencyUuid(`${this.policyAddress.toLowerCase()}:${idempotencyKey}`), // per policy: a new deployment must not collapse into an old transaction
     } as never);
     const id = (res.data as { id?: string } | undefined)?.id;
     if (!id) throw new Error('Circle returned no transaction id');

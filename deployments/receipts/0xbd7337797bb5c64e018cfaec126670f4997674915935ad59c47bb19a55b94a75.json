@@ -1,0 +1,99 @@
+{
+  "version": 2,
+  "invoiceHash": "0xbd7337797bb5c64e018cfaec126670f4997674915935ad59c47bb19a55b94a75",
+  "payee": "0x2fa7b87a71b2fba7fe216921e06c34bfe5e1b265",
+  "amount": "9800000",
+  "category": "0x572d9d34c2795f4a414e0f89c184fecb9a4bfb275d84b3d40628cbb425b45476",
+  "destinationDomain": 26,
+  "policyVersion": "policy-v0.2.0",
+  "chainId": "5042002",
+  "policyAddress": "0x1339aDbA32Ff3C69DD9d9f4ff645525292b43a1B",
+  "txHash": "0xe1ce97b4b80cd1fe97ea5266ce75bfe190791abb7caa0d2193837ca5b3dde51f",
+  "blockNumber": 67361810,
+  "releasedAt": "2026-10-15T17:03:13.000Z",
+  "humanSigned": true,
+  "humanSig": "0x000000006ad1155e444a42f6c7db61a7cba87ea1d914552a83aa6593bbdf4a635c84098620373b941a6863f9d15c396a28cf649470724bce9b04367971e27785a64c9a3c4f8af36b1b",
+  "onChainReceiptHash": "0x25507516fd82b715f84cf88a64b161c054507057cf028cc38da2bc74765e937b",
+  "attestations": [
+    {
+      "attestation": {
+        "invoiceHash": "0xbd7337797bb5c64e018cfaec126670f4997674915935ad59c47bb19a55b94a75",
+        "payee": "0x2fa7b87a71b2fba7fe216921e06c34bfe5e1b265",
+        "amount": "9800000",
+        "role": 0,
+        "verdict": 1,
+        "confidenceBps": 9800,
+        "evidenceHash": "0xfea8473edb2968ac92a9dffea7345cf0625d6b0efa4ed78f8a5d475933556bbb",
+        "agentId": 1,
+        "expiry": 1792087386,
+        "nonce": "1792083786609000020",
+        "destinationDomain": 26
+      },
+      "signature": "0xee09290bc1c80c5d2b3ba36838368bf426654755b86e83b68734c2dd4a45736c4e78c2f6d500d18a4e8c20ee580724a5576bd42c194a986fdd98bc49679e8d551c"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0xbd7337797bb5c64e018cfaec126670f4997674915935ad59c47bb19a55b94a75",
+        "payee": "0x2fa7b87a71b2fba7fe216921e06c34bfe5e1b265",
+        "amount": "9800000",
+        "role": 1,
+        "verdict": 1,
+        "confidenceBps": 9600,
+        "evidenceHash": "0x5806014e5f68c1355faad9d152faf56cbdfce1d67b01acc877899f7f220fe6bc",
+        "agentId": 2,
+        "expiry": 1792087386,
+        "nonce": "1792083787270000021",
+        "destinationDomain": 26
+      },
+      "signature": "0x0ecf70b383b40f6e0923421c999fc7987f89ca8769ba58a214ee474de11da8113164969267de8f011947d859c0e01c438587b9315757d06f28b7d01b065b24b71c"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0xbd7337797bb5c64e018cfaec126670f4997674915935ad59c47bb19a55b94a75",
+        "payee": "0x2fa7b87a71b2fba7fe216921e06c34bfe5e1b265",
+        "amount": "9800000",
+        "role": 2,
+        "verdict": 1,
+        "confidenceBps": 8500,
+        "evidenceHash": "0x340d3a5c5db81594554a9997a05dcd8217d75c15452f4cb88576006ba54a7e46",
+        "agentId": 3,
+        "expiry": 1792087386,
+        "nonce": "1792083787855000022",
+        "destinationDomain": 26
+      },
+      "signature": "0x614df181993ac0a0b2c7b64451962b7a649794a8800f154df4eefd142b3b63440b5b06cf4c86483e4ef8b8df8c5fd5c0ad2d4de22623316dc81631cc8ca945d51c"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0xbd7337797bb5c64e018cfaec126670f4997674915935ad59c47bb19a55b94a75",
+        "payee": "0x2fa7b87a71b2fba7fe216921e06c34bfe5e1b265",
+        "amount": "9800000",
+        "role": 3,
+        "verdict": 1,
+        "confidenceBps": 8500,
+        "evidenceHash": "0x972e83f88e45a296a80eced5f2b1d91be2cd50fa23afef3ecfec21bb3dd7c17f",
+        "agentId": 4,
+        "expiry": 1792087386,
+        "nonce": "1792083788495000023",
+        "destinationDomain": 26
+      },
+      "signature": "0xe15a1ae67c5f7e8249478be947cc6aa23688dd88a09c0417d4c8d52e57daa12028ae844190cc59411dceb5125c118126f4394b561f920935505c45622a55bf131c"
+    },
+    {
+      "attestation": {
+        "invoiceHash": "0xbd7337797bb5c64e018cfaec126670f4997674915935ad59c47bb19a55b94a75",
+        "payee": "0x2fa7b87a71b2fba7fe216921e06c34bfe5e1b265",
+        "amount": "9800000",
+        "role": 4,
+        "verdict": 1,
+        "confidenceBps": 9100,
+        "evidenceHash": "0x38325306d543434d902cb85a2352124219ba959eec13fabaa7f3545e55d74785",
+        "agentId": 5,
+        "expiry": 1792087386,
+        "nonce": "1792083789170000024",
+        "destinationDomain": 26
+      },
+      "signature": "0x15520523d4389b2bc2831977d3514d631d5196d05dd81bfa5191b0e38e66dd335866613a29c746d051c51071fe1a87fe6db8e4af3a65cbec9667d92b61276ec11b"
+    }
+  ]
+}

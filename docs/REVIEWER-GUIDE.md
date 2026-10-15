@@ -31,7 +31,7 @@ It prints each case and `ALL VERIFIED from chain state`. For the cross-chain cas
 
 ## 4. What is real, and what is not
 
-- **Real:** the contracts on Arc testnet; agent keys held by Circle Wallets (signatures verified by `ecrecover`); the Executor sending through Circle; the CCTP burn; replayable receipts; reputation and bonds moved on-chain; 224+ tests in CI, including randomized invariant tests that mutate packages and assert nothing invalid ever moves money.
+- **Real:** the contracts on Arc testnet; agent keys held by Circle Wallets (signatures verified by `ecrecover`); the Executor sending through Circle; a CCTP payment burned on Arc and minted on Base Sepolia (both re-checked from chain state); replayable receipts; reputation and bonds moved on-chain; 226 tests in CI, including randomized invariant tests that mutate packages and assert nothing invalid ever moves money.
 - **Scripted by us:** the seven demo invoices (including every attack) and the Auditor's ground truth, including one **seeded** miss used to show a slash.
 - **Scaled:** test USDC at 1/1000 of the demo amounts, because the faucet gives about 20 USDC.
 - **Built, not live:** USYC. The treasury contract is deployed and tested against a mock, but Circle must entitle it before it can subscribe. We say so wherever it appears.

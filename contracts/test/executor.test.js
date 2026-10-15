@@ -51,6 +51,7 @@ describe('Executor (against the real contract)', function () {
       ...opts,
     });
 
+  const policyPaid = (h) => policy.paid(h);
   const txCount = () => ethers.provider.getTransactionCount(executorSigner.address);
 
   before(async () => {
@@ -386,6 +387,31 @@ describe('Executor (against the real contract)', function () {
       } finally {
         await new Promise((r) => server.close(r));
       }
+    });
+  });
+describe('records from another deployment', () => {
+    it('a CONFIRMED record the chain does not back is ignored, so an upgraded policy can still pay', async () => {
+      const p = await distinct('INV-8601', 4, '2026-11-14', '2026-11-21');
+      const stale = new ex.MemoryStore();
+      await stale.putRecord({ invoiceHash: p.invoiceHash, state: 'CONFIRMED', attempts: 1, txHash: '0x' + 'de'.repeat(32), updatedAt: new Date().toISOString() });
+      const e = makeExecutor({ store: stale });
+      expect(await policyPaid(p.invoiceHash)).to.equal(false);
+      const out = await e.release(p.package);
+      expect(out.status).to.equal('RELEASED');
+      expect(out.txHash).to.not.equal('0x' + 'de'.repeat(32));
+      expect(await policyPaid(p.invoiceHash)).to.equal(true);
+      expect((await ex.replayReceipt(out.receipt, { registry: registryRead })).ok).to.equal(true);
+    });
+
+    it('a PENDING record whose transaction released nothing here is dropped and the payment retried', async () => {
+      const p = await distinct('INV-8602', 4, '2026-11-14', '2026-11-21');
+      const real = await distinct('INV-8603', 2, '2026-11-14', '2026-11-21');
+      const first = await makeExecutor().release(real.package); // a genuine confirmed tx that is NOT p's release
+      const stale = new ex.MemoryStore();
+      await stale.putRecord({ invoiceHash: p.invoiceHash, state: 'PENDING', attempts: 1, ref: first.txHash, txHash: first.txHash, package: ex.toJson(p.package), updatedAt: new Date().toISOString() });
+      const out = await makeExecutor({ store: stale }).release(p.package);
+      expect(out.status).to.equal('RELEASED');
+      expect(out.txHash).to.not.equal(first.txHash);
     });
   });
 });

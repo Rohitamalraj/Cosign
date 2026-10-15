@@ -6,9 +6,9 @@ Cosign splits the AP job into eight single-purpose agents. Each one signs what i
 
 Built for the **Tameion Agents Hackathon**, RFB 2 (AP/AR automation), with elements of RFB 3 (vendor and agent reputation) and RFB 4 (limits enforced in a contract, not a prompt).
 
-> **Status: work in progress.** The contracts are **deployed on Arc testnet** (policy v0.2). Agents sign through **Circle Wallets**, the Executor sends through Circle, and a vendor can be paid **on another chain through CCTP** (USDC is burned on Arc and minted on Base Sepolia). The Auditor has moved reputation and slashed a bond on-chain. 224+ tests pass and CI runs them. **There are no real users yet**, and the invoice inbox in the web app pays from a simulated demo ledger. See [What works today](#what-works-today).
+> **Status: work in progress.** The contracts are **deployed on Arc testnet** (policy v0.2). All seven demo cases ran on-chain end to end. Agents sign through **Circle Wallets**, the Executor sends through Circle, and a vendor was paid **on another chain through CCTP** (USDC burned on Arc, minted on Base Sepolia, both checked from chain state). The Auditor has moved reputation and slashed a bond on-chain. 226 tests pass and CI runs them. **There are no real users yet**, and the invoice inbox in the web app pays from a simulated demo ledger. See [What works today](#what-works-today).
 
-**What changed since the first run (policy v0.1 to v0.2):** every attestation now binds the destination chain, so five agents sign *where* the money goes, not only who gets it. An address allowlisted on Arc is not allowed on another chain. The first run's evidence (cases A to E on v0.1) is kept in [`deployments/archive/v0.1`](./deployments/archive/v0.1) and is not shown in the live verifier, because the signing format changed.
+**What changed since the first run (policy v0.1 to v0.2):** every attestation now binds the destination chain, so five agents sign *where* the money goes, not only who gets it. An address allowlisted on Arc is not allowed on another chain. The first run (cases A to E on v0.1) is kept in [`deployments/archive/v0.1`](./deployments/archive/v0.1) and is not shown in the live verifier, because the signing format changed.
 
 ## For judges: verify it in 60 seconds
 
@@ -16,7 +16,7 @@ You do not need to trust this README. Everything about the Arc run is re-checked
 
 1. **In the app:** run `cd frontend && npm install && npm run build && npm run start`, open `http://localhost:3000/onchain`, press **Re-verify now**. It reads Arc testnet and checks every case, every receipt (signatures, registry, receipt hash, human approval) and each agent's live score and bond.
 2. **In a terminal:** `cd executor && npm install && npx tsx scripts/verify-onchain.ts`. Same checks, prints `ALL VERIFIED from chain state`.
-3. **On the explorer:** [case F, 0.75 USDC burned on Arc for a vendor on Base Sepolia](https://explorer.testnet.arc.io/tx/0xf05c1369ec99326c2548f975a873aa610aa42e3272cf6c33113ca66380619524) (policy v0.2). The first run's payments, [case A](https://explorer.testnet.arc.io/tx/0x6373024565374eb2302cbd8be1c0f1ea6517d2b290dfa99553c53b051e5c1f3f) and [case E](https://explorer.testnet.arc.io/tx/0xf19f16ad66294d4e7a7995784212feaebb163757d249cb057fdfa123a949b1d6), are still on-chain against the archived v0.1 policy. Cases B, C and D were held by the contract, so there is no payment transaction to find.
+3. **On the explorer** (policy v0.2): [case A, 1.25 USDC paid](https://explorer.testnet.arc.io/tx/0x8da891d231f415831701e66a35727efb3d738fc1ddf322b9478e66b0ead917c9); [case E, 9.80 USDC paid after a human signature](https://explorer.testnet.arc.io/tx/0xe1ce97b4b80cd1fe97ea5266ce75bfe190791abb7caa0d2193837ca5b3dde51f); [case F, 0.75 USDC burned on Arc](https://explorer.testnet.arc.io/tx/0xf05c1369ec99326c2548f975a873aa610aa42e3272cf6c33113ca66380619524) and [minted on Base Sepolia](https://sepolia.basescan.org/tx/0xdfdd8d3c7c241e4f96bc6bb0657025f16447c52ffe47256edc966572789afa1a). Cases B, C, D and G were held by the contract, so there is no payment transaction to find. The first run on the archived v0.1 policy is also still on-chain.
 4. **As a tool for other agents:** the app serves a remote [MCP](https://modelcontextprotocol.io) endpoint at `/mcp` (tools `check_invoice`, `demo_invoices`, `onchain_proof`). See [Use Cosign from another agent](#use-cosign-from-another-agent).
 
 **What is real, and what is not**
@@ -26,8 +26,8 @@ You do not need to trust this README. Everything about the Arc run is re-checked
 | Contracts on Arc testnet, real USDC token, gas in USDC | **Test money only, at 1/1000 scale** (faucet limit) |
 | Agents sign through Circle-held keys; contract verifies with `ecrecover` | The five invoices are **scripted** by us, including the attacks |
 | Held cases moved nothing; paid cases are in the paid set | The Auditor's ground truth is scripted; the slash is a **seeded** stand-in |
-| 224+ automated tests in CI, incl. agents -> contract end to end and randomized invariant tests | **No real users yet** (see `docs/TRACTION.md`) |
-| CCTP burn on Arc verified from chain state | The **mint on Base** is only claimed once its transaction is recorded (the `/onchain` page says which) |
+| 226 automated tests in CI, incl. agents -> contract end to end and randomized invariant tests | **No real users yet** (see `docs/TRACTION.md`) |
+| CCTP burn on Arc and mint on Base Sepolia, both re-checked from chain state | Base Sepolia is a testnet; one cross-chain payment of 0.75 USDC, scripted by us |
 | USYC treasury contract, tested | **USYC is not live**: Circle must entitle the contract first (ticket text in `docs/USYC-SUPPORT-TICKET.md`) |
 | Replayable receipts | The web inbox pays from a **simulated** demo ledger |
 
@@ -87,11 +87,11 @@ A read-only `evaluate()` returns the failing rule without spending anything, so 
 
 | Part | Status |
 | --- | --- |
-| Policy contract, registry, treasury, mock USDC | Done. 111 Hardhat tests on a local chain, including 14 for CCTP, 12 for the treasury and randomized invariant tests |
+| Policy contract, registry, treasury, mock USDC | Done. 113 Hardhat tests on a local chain, including 14 for CCTP, 12 for the treasury, randomized invariant tests and Executor recovery tests |
 | Agent workers (Reader, Verifier, Matcher, Sentinel, Treasurer) | Done. Deterministic checks plus optional free LLMs. 79 tests |
 | Agents -> contract, end to end | Done. Tests push the agents' real signed output through the real contract |
 | Executor service (`release`, idempotency, crash recovery, receipts, HTTP API) | Done. 34 unit tests plus chain tests against the real contract |
-| **CCTP cross-chain payouts** | **Burn side live on Arc testnet and verified from chain state** (case F). The Executor then waits for Circle's attestation and submits the mint on the destination, resuming after a crash or a failed mint. The mint transaction is shown on `/onchain` once recorded |
+| **CCTP cross-chain payouts** | **Live on testnet, end to end.** Case F burned 0.75 USDC on Arc and the Executor minted it on Base Sepolia after Circle attested it. The Executor resumes after a crash or a failed mint (tested), and `/onchain` shows both transactions, each re-checked from its own chain |
 | **USYC treasury** | **Contract built, deployed and tested against a mock Teller.** Not live: Circle has to entitle the contract (support ticket). The Treasurer agent's invest and redeem orders are verified on-chain, redeemed USDC can only go to the policy, and the invested share is capped |
 | MCP server (`/mcp`) | Done. `check_invoice`, `demo_invoices`, `onchain_proof` over Streamable HTTP; results are simulated, the contract is the gate |
 | CI | GitHub Actions runs every test suite, typechecks, builds the app and scans for committed secrets |
@@ -100,7 +100,7 @@ A read-only `evaluate()` returns the failing rule without spending anything, so 
 | Frontend: On-chain, Agents, dashboard | **Live from Arc testnet:** keyless re-verification, receipt replay, agent scores and bonds, Auditor events. Traction shows real partners only, which is zero today |
 | Executor + receipt replay | Done and used on Arc through a Circle wallet (the demo script). Not triggered from the web UI |
 | PDF input | **Text-based PDFs work** (upload in the inbox; 5 MB and 10 page caps, hardened pdf.js). **Scanned PDFs need OCR, which is not built** and are rejected with a clear message. Invoices in a layout the parser does not know are held for a human unless a free model is configured to propose the missing fields (see below) |
-| Deployment to Arc testnet | **Done.** Registry, policy v0.2 and treasury deployed against the real USDC. Cross-chain case F ran on-chain; re-running cases A to E on v0.2 needs more faucet USDC and is tracked in the status table above |
+| Deployment to Arc testnet | **Done.** Registry, policy v0.2 and treasury deployed against the real USDC. All seven demo cases ran on-chain on v0.2 |
 | Circle Wallets | **Used.** The five agents' signing keys and the Executor wallet are Circle developer-controlled wallets on ARC-TESTNET |
 | Web inbox "Release" -> Arc | Not wired, on purpose for now: an unauthenticated public page that can trigger payments would be unsafe. The on-chain run is a script (`executor/scripts/onchain-demo.ts`) |
 | Auditor | **Partly.** `contracts/scripts/audit-arc.js` writes outcomes on-chain (scores move, a bond is slashed and restored), but the ground truth is scripted. Reconciliation against real external data is not built |
@@ -117,7 +117,10 @@ Chain `5042002`. Gas and settlement are real USDC (the token at `0x3600…0000`)
 | CosignPolicy v0.2 (the gate) | [`0x1339aDbA32Ff3C69DD9d9f4ff645525292b43a1B`](https://explorer.testnet.arc.io/address/0x1339aDbA32Ff3C69DD9d9f4ff645525292b43a1B) |
 | AgentRegistry (reused from the first run) | [`0x93dDf1BfC79B7B194FA1DA5f77d6F07Fa49AAb64`](https://explorer.testnet.arc.io/address/0x93dDf1BfC79B7B194FA1DA5f77d6F07Fa49AAb64) |
 | CosignTreasury (USYC reserve, not entitled yet) | [`0x981142C4AC97fa7E345f5c369f3158824Ce06632`](https://explorer.testnet.arc.io/address/0x981142C4AC97fa7E345f5c369f3158824Ce06632) |
-| Case F: 0.75 USDC burned on Arc for a vendor on Base Sepolia (CCTP domain 6) | [`0xf05c…9524`](https://explorer.testnet.arc.io/tx/0xf05c1369ec99326c2548f975a873aa610aa42e3272cf6c33113ca66380619524) |
+| Case A: clean invoice, 1.25 USDC paid | [`0x8da8…17c9`](https://explorer.testnet.arc.io/tx/0x8da891d231f415831701e66a35727efb3d738fc1ddf322b9478e66b0ead917c9) |
+| Case E: 9.80 USDC, above the 5 USDC limit, released with a human signature | [`0xe1ce…de51`](https://explorer.testnet.arc.io/tx/0xe1ce97b4b80cd1fe97ea5266ce75bfe190791abb7caa0d2193837ca5b3dde51f) |
+| Case F: 0.75 USDC burned on Arc for a vendor on Base Sepolia (CCTP domain 6) | burn [`0xf05c…9524`](https://explorer.testnet.arc.io/tx/0xf05c1369ec99326c2548f975a873aa610aa42e3272cf6c33113ca66380619524), mint on Base Sepolia [`0xdfdd…afa1a`](https://sepolia.basescan.org/tx/0xdfdd8d3c7c241e4f96bc6bb0657025f16447c52ffe47256edc966572789afa1a) |
+| Cases B, C, D, G | Held by the contract on rule 4. No transaction was sent and the paid set is empty for them |
 | Archived v0.1 policy and its run (cases A, E paid; B, C, D held) | [`0x3278…72d7`](https://explorer.testnet.arc.io/address/0x32781b9dd9aE9ef8C6a1b8a264d3Aca0aEcc72d7), case A [`0x6373…1f3f`](https://explorer.testnet.arc.io/tx/0x6373024565374eb2302cbd8be1c0f1ea6517d2b290dfa99553c53b051e5c1f3f), case E [`0xf19f…b1d6`](https://explorer.testnet.arc.io/tx/0xf19f16ad66294d4e7a7995784212feaebb163757d249cb057fdfa123a949b1d6) |
 
 What ran on-chain (all files are in [`deployments/`](./deployments)):

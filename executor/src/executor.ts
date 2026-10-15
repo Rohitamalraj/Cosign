@@ -20,6 +20,9 @@ export interface ExecutorOptions {
   nowSec?: () => number | Promise<number>;
 }
 
+/** A confirmed transaction that did not release this invoice through this policy: it belongs to something else (an older deployment). */
+class NoReleasedEvent extends Error {}
+
 const iface = new Interface(POLICY_ABI);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -103,7 +106,12 @@ export class Executor {
     let rec = await this.store.getRecord(hash);
 
     if (rec?.state === 'CONFIRMED') {
-      return { status: 'ALREADY_RELEASED', invoiceHash: hash, txHash: rec.txHash!, receipt: await this.store.getReceipt(hash) };
+      // The contract's paid set is the truth, not our file. A CONFIRMED record that this policy does not know about came from
+      // another deployment (for example the policy before an upgrade), so it proves nothing here: ignore it and start fresh.
+      if (await this.policy.paid(hash)) {
+        return { status: 'ALREADY_RELEASED', invoiceHash: hash, txHash: rec.txHash!, receipt: await this.store.getReceipt(hash) };
+      }
+      rec = null;
     }
     if (rec && (rec.state === 'PENDING' || rec.state === 'SENDING')) {
       const settled = await this.resolveInFlight(hash, rec, pkg);
@@ -168,7 +176,14 @@ export class Executor {
     if (ref) {
       const s = await this.submitter.status(ref, rec.txHash);
       if (s.status === 'pending') return { status: 'PENDING', invoiceHash: hash, txHash: rec.txHash ?? ref }; // still in flight: do not send again
-      if (s.status === 'confirmed') return this.finalize(hash, pkg, s.txHash);
+      if (s.status === 'confirmed') {
+        try { return await this.finalize(hash, pkg, s.txHash); }
+        catch (e) {
+          if (!(e instanceof NoReleasedEvent)) throw e;
+          await this.store.putRecord({ ...rec, state: 'REVERTED', reason: 'the recorded transaction did not release this invoice through this policy', updatedAt: new Date().toISOString() });
+          return null; // safe to retry: the contract's paid set is checked next
+        }
+      }
       await this.store.putRecord({ ...rec, state: 'REVERTED', reason: s.reason, updatedAt: new Date().toISOString() });
       return null;
     }
@@ -195,8 +210,8 @@ export class Executor {
     const log = r.logs
       .filter((l) => l.address.toLowerCase() === policyAddress.toLowerCase())
       .map((l) => { try { return iface.parseLog(l); } catch { return null; } })
-      .find((p) => p?.name === 'Released');
-    if (!log) throw new Error(`transaction ${r.hash} succeeded but emitted no Released event`);
+      .find((p) => p?.name === 'Released' && String(p.args.invoiceHash).toLowerCase() === hash);
+    if (!log) throw new NoReleasedEvent(`transaction ${r.hash} succeeded but emitted no Released event`);
 
     const block = await this.provider.getBlock(r.blockNumber);
     const receipt = buildReceipt({
