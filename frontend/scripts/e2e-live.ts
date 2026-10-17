@@ -59,9 +59,11 @@ async function main() {
   const n1 = `INV-E2E-${Date.now().toString().slice(-6)}`;
   const r1 = await a.call('/api/invoices', { body: { text: invoice(n1, 8, '2026-10-16') } });
   const inv1 = r1.body.invoice;
-  ok(inv1?.status === 'ready', `clean invoice is ready: the real contract says it would release (${inv1?.status}: ${inv1?.headline?.slice(0, 90)})`);
+  // With automatic payment on (the default) a cleared invoice is already paid when the call returns; with COSIGN_AUTO_PAY=0 it waits for the release call.
+  const autoPay = !!st.body.autoPay;
+  ok(inv1?.status === 'ready' || (autoPay && inv1?.status === 'released'), `clean invoice is cleared by the real contract${autoPay ? ' and paid automatically' : ''} (${inv1?.status}: ${inv1?.headline?.slice(0, 90)})`);
   if (process.env.E2E_SMOKE) {
-    console.log(failures ? `${failures} CHECK(S) FAILED` : 'SMOKE PASSED (no payment made)');
+    console.log(failures ? `${failures} CHECK(S) FAILED` : inv1?.status === 'released' ? 'SMOKE PASSED (a payment WAS made: automatic payment is on; set COSIGN_AUTO_PAY=0 on the server for a no-spend smoke test)' : 'SMOKE PASSED (no payment made)');
     process.exit(failures ? 1 : 0);
   }
   const pay1 = await a.call(`/api/invoices/${encodeURIComponent(inv1.uid)}/release`, { body: {} });

@@ -88,7 +88,7 @@ export default function Invoices() {
       <PageHeader
         eyebrow="Invoice inbox"
         title="Every invoice, and why it moved or didn’t."
-        sub="Paste an invoice. Five agents read, check and sign it through Circle-held keys, and the real contract says what it would do. Pay it from here and the Executor sends real test USDC on Arc."
+        sub="Paste an invoice. Five agents read, check and sign it through Circle-held keys, and the real contract decides. When all five pass and it is within the limit, the Executor pays it automatically with real test USDC. Larger or doubtful invoices wait for a person."
       />
 
       {!loading && !session && (
@@ -242,7 +242,7 @@ export default function Invoices() {
                 )}
                 <button type="button" className="btn-ghost" disabled={busy} onClick={() => void guarded(async () => { setSelected((await rerun(inv.uid)).uid); })}>Run the agents again</button>
                 <p className="text-[13px] text-ink/60">
-                  {!canRelease ? 'Only operators and admins can pay.' : !status ? 'Checking the server…' : !live ? 'No chain connected: this server cannot pay.' : needsApproval ? 'Over the limit: the approver’s wallet must sign. MetaMask will ask.' : inv.status === 'ready' ? 'Sends real test USDC through the Executor. The contract re-checks all eight rules first.' : 'Held. Fix the cause (for example add the vendor, or wait out the cooling-off) and run the agents again.'}
+                  {!canRelease ? 'Only operators and admins can pay.' : !status ? 'Checking the server…' : !live ? 'No chain connected: this server cannot pay.' : needsApproval ? 'Over the limit: the approver’s wallet must sign. MetaMask will ask.' : inv.status === 'ready' ? (status?.autoPay ? 'Cleared by the contract but not paid yet (for example the automatic attempt failed). This sends real test USDC through the Executor; the contract re-checks all eight rules first.' : 'Automatic payment is off on this server. This sends real test USDC through the Executor; the contract re-checks all eight rules first.') : 'Held. Fix the cause (for example add the vendor, or wait out the cooling-off) and run the agents again.'}
                 </p>
               </div>
             )}

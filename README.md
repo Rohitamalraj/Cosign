@@ -170,12 +170,12 @@ sequenceDiagram
     participant Policy as CosignPolicy (Arc)
     participant Exec as Executor (Circle wallet)
 
-    Operator->>App: Paste invoice, upload PDF or scan, or email arrives
+    Operator->>App: Paste invoice or upload PDF or scan (email only queues it)
     App->>Agents: Parse, then run all five in parallel
     Agents-->>App: Five EIP-712 attestations (PASS / FAIL / ESCALATE)
     App->>Policy: evaluate(attestations) (free view call)
     Policy-->>App: Releasable, or the first failing rule
-    Operator->>App: Pay now
+    Note over App,Exec: Cleared (all five PASS, 8 rules, within the limit): paid automatically. Over the limit or doubtful: it waits for a person.
     App->>Exec: release(attestations)
     Exec->>Policy: evaluate again, then send release()
     Policy->>Policy: Verify signatures, 8 rules, mark hash paid
@@ -219,7 +219,7 @@ An operator reports once whether holding or paying an invoice was right. The Aud
 |---|---|
 | Contracts on Arc testnet (policy v0.2, registry, treasury) | **Live.** Real USDC, gas in USDC. |
 | Five agents signing through Circle wallets | **Live.** Optional free LLMs (Groq, Gemini, OpenRouter or local Ollama) can only add doubt. |
-| Pay from the web app (local and deployed) | **Live and tested.** Real transaction, real receipt, replayable. |
+| Automatic payment from the web app (local and deployed) | **Live.** A cleared invoice is paid with no click. Over-limit and held ones wait for a person. Real transaction, real receipt, replayable. |
 | **CCTP cross-chain payouts** | **Live, tested three ways.** A scripted case, then a payment from the local app, then one from the deployed app. Each burned on Arc and minted on Base Sepolia. See the table below. |
 | Human approval in MetaMask | **Live and tested.** |
 | Vendor ledger with on-chain allowlist and cooling-off | **Live.** |
@@ -371,7 +371,7 @@ See [`docs/DEPLOY.md`](./docs/DEPLOY.md). The Render blueprint creates the web s
 1. **Sign in** with MetaMask. An address in `COSIGN_ADMIN_ADDRESSES` is an admin.
 2. **Vendors:** add a vendor. This is a real on-chain allowlist transaction followed by a cooling-off period. Example vendors can be imported with `npx tsx scripts/seed-example-vendors.ts`.
 3. **Invoices:** paste an invoice, upload a PDF or a scan, or send an email to the intake webhook. Watch the five attestations and the contract's eight rules.
-4. **Pay now:** the Executor re-asks the contract, then sends the release. For a vendor on Base Sepolia the app burns on Arc and mints on Base in the background.
+4. **Automatic payment:** when all five agents pass and the contract clears the invoice, the Executor re-asks the contract and sends the release with no click. Invoices that arrive by email never pay on their own. `COSIGN_AUTO_PAY=0` turns this off and brings back the **Pay now** button. For a vendor on Base Sepolia the app burns on Arc and mints on Base in the background.
 5. **Over the limit:** the approver signs an EIP-712 approval in MetaMask, then the payment releases.
 6. **Receipts and On-chain:** open a receipt to replay it, or press Re-verify now on `/onchain`.
 7. **Report what really happened:** the Auditor moves reputation and bonds on-chain.

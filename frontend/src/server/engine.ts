@@ -15,6 +15,7 @@ import { HUMAN_APPROVAL_TYPES } from '../../../executor/src/abi';
 import { domainFor, replayReceipt } from '../../../executor/src/receipt';
 import { toJson } from '../../../executor/src/types';
 import { OUTCOME_KINDS, OutcomeError, effectsFor, type Effect, type OutcomeKind, type Verdict } from './auditor';
+import { autoPayEnabled, shouldAutoPay } from './autopay';
 import { can, type Session } from './auth';
 import { InboundError, composeInvoiceText, type InboundMessage } from './email';
 import { openDb, type Db } from './db';
@@ -69,6 +70,8 @@ export interface Status {
   database: 'postgres' | 'pglite';
   models: { reader: boolean; matcher: boolean; sentinel: boolean };
   crossChainMint: boolean;
+  /** Invoices the contract clears are paid automatically; only over-limit or held ones wait for a person. */
+  autoPay: boolean;
   /** Gas (USDC) in the operating wallets. Below about 0.3 the Executor cannot send a payment. */
   gas: { executor: number; screener: number; auditor: number } | null;
   note: string | null;
@@ -78,7 +81,7 @@ export async function getStatus(): Promise<Status> {
   const db = await getDb();
   const live = await getLive(db);
   const llm = llmConfigFromEnv();
-  const base = { database: db.kind === 'pg' ? ('postgres' as const) : ('pglite' as const), models: { reader: !!llm.reader, matcher: !!llm.matcher, sentinel: !!llm.sentinel } };
+  const base = { database: db.kind === 'pg' ? ('postgres' as const) : ('pglite' as const), models: { reader: !!llm.reader, matcher: !!llm.matcher, sentinel: !!llm.sentinel }, autoPay: autoPayEnabled() };
   if (!live) return { ...base, mode: 'preview', network: 'none', chainId: null, policy: null, humanApprover: null, perTxLimitUsdc: null, policyUsdc: null, crossChainMint: false, gas: null, note: 'Preview: the agents run, but no chain connection is configured, so nothing can be signed by registered agents or released.' };
   const facts = await live.chainFacts(0n);
   const [ex, sc, au] = await Promise.all([live.gasOf('EXECUTOR'), live.gasOf('SCREENER'), live.gasOf('AUDITOR')]);
@@ -181,7 +184,7 @@ function toView(r: ProcessResult, text: string, ledger: Ledger, answer: { rule: 
  * Re-submitting an unpaid invoice replaces its row; re-submitting one that was already paid is a NEW row, so the Sentinel's
  * duplicate catch is visible.
  */
-export async function submitInvoice(text: string, actor: Session | null, opts: { persist?: boolean; meta?: Partial<Invoice> } = {}): Promise<Invoice> {
+export async function submitInvoice(text: string, actor: Session | null, opts: { persist?: boolean; meta?: Partial<Invoice>; autoPay?: boolean } = {}): Promise<Invoice> {
   const { db, live, ledger } = await runtime();
   const signers = live ? live.signers : loadAgentKeys();
   const r = await processInvoice(text, ledger, pipelineCfg(live), signers);
@@ -212,6 +215,18 @@ export async function submitInvoice(text: string, actor: Session | null, opts: {
     destinationDomain: r.package?.req.destinationDomain ?? ARC_DOMAIN, createdBy: owner, view: view as unknown as Record<string, unknown>,
     package: r.package ? toJson(r.package) : null, sourceText: text, history,
   });
+
+  // Automatic payment: only when the contract itself says "releasable now" (all five PASS, all eight rules, within the limit).
+  if (shouldAutoPay({ enabled: autoPayEnabled(), allowed: opts.autoPay !== false, canRelease: can.releasePayments(actor), live: !!live, status: view.status, hasPackage: !!r.package })) {
+    try {
+      return await releaseInvoice(uid, actor, undefined, { auto: true });
+    } catch (e) {
+      // Nothing is lost: the invoice stays ready and the Pay button still works. Say what happened.
+      const why = (e instanceof Error ? e.message : String(e)).slice(0, 220);
+      await updateInvoiceStatus(db, uid, 'ready', { headline: `Automatic payment did not go through: ${why} Press Pay now to try again.` });
+      return asInvoice((await getInvoice(db, uid))!);
+    }
+  }
   return view;
 }
 
@@ -279,7 +294,7 @@ const packHumanSig = (expiry: number, signature: string) => concat([toBeHex(expi
  * Release an invoice. The Executor asks the contract first and only sends if the contract will release, so this cannot
  * pay anything the eight rules refuse. `approval` is the approver wallet's signature, needed only above the limit.
  */
-export async function releaseInvoice(uid: string, actor: Session | null, approval?: { expiry: number; signature: string }): Promise<Invoice> {
+export async function releaseInvoice(uid: string, actor: Session | null, approval?: { expiry: number; signature: string }, opts: { auto?: boolean } = {}): Promise<Invoice> {
   if (!can.releasePayments(actor)) throw httpError(403, 'only operators and admins can release payments');
   const { db, live, ledger } = await runtime();
   if (!live) throw httpError(503, 'No chain is connected, so this server cannot release payments.');
@@ -322,7 +337,7 @@ export async function releaseInvoice(uid: string, actor: Session | null, approva
 
   const txUrl = `${EXPLORER}/tx/${out.txHash}`;
   await updateInvoiceStatus(db, uid, 'released', {
-    tx: out.txHash, txUrl, headline: `Paid on-chain. The contract released ${num(BigInt(pkg.req.amount)).toLocaleString('en-US')} USDC${pkg.req.destinationDomain === ARC_DOMAIN ? '' : ` (burned on Arc for ${chainLabel(pkg.req.destinationDomain)})`}.`,
+    tx: out.txHash, txUrl, headline: `${opts.auto ? 'Paid automatically: all five agents signed PASS and the contract released' : 'Paid on-chain. The contract released'} ${num(BigInt(pkg.req.amount)).toLocaleString('en-US')} USDC${pkg.req.destinationDomain === ARC_DOMAIN ? '' : ` (burned on Arc for ${chainLabel(pkg.req.destinationDomain)})`}.`,
     humanSig: humanSig === '0x' ? undefined : 'approver wallet', ruleOverrides: {},
   });
   if (row.history) {
@@ -575,7 +590,8 @@ export async function ingestEmail(msg: InboundMessage): Promise<IngestResult> {
     // Record first, so a provider retry of the same message cannot create a second invoice.
     const item = await addIntake(db, { channel: 'email', messageId: msg.messageId, fromAddr: from, subject: msg.subject, text, ocr: false, status: 'new' });
     if (!item) return { status: 'duplicate' };
-    const inv = await submitInvoice(text, EMAIL_ACTOR, { meta: { intake: { channel: 'email', from, subject: msg.subject } } });
+    // Email never pays on its own, even with automatic payment on: a person must press Pay for anything that arrived by email.
+    const inv = await submitInvoice(text, EMAIL_ACTOR, { autoPay: false, meta: { intake: { channel: 'email', from, subject: msg.subject } } });
     await setIntakeStatus(db, item.id, 'processed', inv.uid);
     return { status: 'processed', invoiceUid: inv.uid, decision: inv.decision };
   } catch (e) {
