@@ -9,7 +9,6 @@
  * The inputs are untrusted files, so: magic-byte checks, size, pixel and page caps, a wall-clock timeout, and the engine
  * runs in a worker that is always terminated.
  */
-import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, sep } from 'node:path';
 
@@ -31,7 +30,10 @@ export class OcrError extends Error {}
  */
 declare const __non_webpack_require__: NodeRequire | undefined;
 // webpack rewrites createRequire() and require() in bundled code; __non_webpack_require__ is the real Node require it leaves alone.
-const nativeRequire: NodeRequire = typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__ : createRequire(join(process.cwd(), 'package.json'));
+// process.getBuiltinModule (Node 22+) is invisible to webpack's parser, unlike a direct createRequire() call.
+const nativeRequire: NodeRequire = typeof __non_webpack_require__ !== 'undefined'
+  ? __non_webpack_require__
+  : (process as unknown as { getBuiltinModule: (n: string) => typeof import('node:module') }).getBuiltinModule('node:module').createRequire(join(process.cwd(), 'package.json'));
 
 const isPng = (b: Uint8Array) => b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
 const isJpeg = (b: Uint8Array) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
@@ -96,7 +98,7 @@ export async function ocrPdf(data: Uint8Array, opts: Partial<OcrLimits> = {}): P
   gl.DOMMatrix ??= canvasLib.DOMMatrix;
   gl.ImageData ??= canvasLib.ImageData;
   // Non-embedded standard fonts (Helvetica and friends) need pdf.js's font files to be drawn at all.
-  const fontDir = join(dirname(createRequire(__filename).resolve('pdfjs-dist/package.json')), 'standard_fonts') + sep;
+  const fontDir = join(dirname(nativeRequire.resolve('pdfjs-dist/package.json')), 'standard_fonts') + sep;
   const task = pdfjs.getDocument({ data: new Uint8Array(data), isEvalSupported: false, verbosity: 0, standardFontDataUrl: fontDir });
   let doc;
   try { doc = await task.promise; }

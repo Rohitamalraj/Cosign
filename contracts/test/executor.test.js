@@ -341,6 +341,24 @@ describe('Executor (against the real contract)', function () {
       expect((await ex.replayReceipt(forged, { approver: approver.address })).ok).to.equal(false);
     });
 
+    it('a receipt still replays after the approver changes: it is checked against the approver at release time', async () => {
+      await policy.setPerTxLimit(usdc(1_000)); // so an ordinary 1,250 USDC invoice needs the approver
+      const e = await distinct('INV-8701', 10, '2026-11-15', '2026-11-22');
+      const expiry = (await time.latest()) + 3600;
+      const td = ex.humanApprovalTypedData({ chainId: cfg.chainId, policyAddress: policy.target, invoiceHash: e.package.req.invoiceHash, payee: e.package.req.payee, amount: e.package.req.amount, destinationDomain: e.package.req.destinationDomain, expiry });
+      const out = await executor.release({ ...e.package, humanSig: ex.packHumanSig(expiry, await approver.signTypedData(td.domain, td.types, td.value)) });
+      expect(out.status).to.equal('RELEASED');
+
+      await policy.setHumanApprover(stranger.address); // the approver is replaced after the payment
+      const atBlock = async (b) => policy.humanApprover({ blockTag: b });
+      const naive = await ex.replayReceipt(out.receipt, { registry: registryRead, approver: stranger.address });
+      expect(naive.ok, 'checking against the current approver wrongly fails an old receipt').to.equal(false);
+      const proper = await ex.replayReceipt(out.receipt, { registry: registryRead, approver: stranger.address, approverAt: atBlock });
+      expect(proper.checks.filter((c) => !c.ok)).to.deep.equal([]);
+      await policy.setHumanApprover(approver.address); // restore for the tests that follow
+      await policy.setPerTxLimit(usdc(5_000));
+    });
+
     it('rejects malformed input before touching the chain', async () => {
       const a = await run('A');
       await assertNoTxSent(async () => {
@@ -389,6 +407,27 @@ describe('Executor (against the real contract)', function () {
       }
     });
   });
+describe('retrying after a failed send', () => {
+  it('uses a new idempotency key for each attempt, so a failed transaction does not block the retry', async () => {
+    const p = await distinct('INV-8801', 3, '2026-11-16', '2026-11-23');
+    const base = new ex.EthersSubmitter(new ethers.Contract(policy.target, ex.POLICY_ABI, executorSigner));
+    const keys = [];
+    const failing = {
+      async submit(pkg, key) { keys.push(key); return keys.length === 1 ? { ref: 'will-fail' } : base.submit(pkg, key); },
+      async status(ref, txHash) { return ref === 'will-fail' ? { status: 'failed', reason: 'INSUFFICIENT_NATIVE_TOKEN' } : base.status(ref, txHash); },
+    };
+    const e = makeExecutor({ submitter: failing });
+    let threw = false;
+    try { await e.release(p.package); } catch (err) { threw = /INSUFFICIENT_NATIVE_TOKEN/.test(String(err.message)); }
+    expect(threw).to.equal(true);
+    const second = await e.release(p.package);
+    expect(second.status).to.equal('RELEASED');
+    expect(keys).to.have.length(2);
+    expect(keys[1]).to.not.equal(keys[0]);
+    expect(keys[1].startsWith(keys[0])).to.equal(true);
+  });
+});
+
 describe('records from another deployment', () => {
     it('a CONFIRMED record the chain does not back is ignored, so an upgraded policy can still pay', async () => {
       const p = await distinct('INV-8601', 4, '2026-11-14', '2026-11-21');

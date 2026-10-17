@@ -6,6 +6,7 @@ export const POLICY_ABI = [
   `function release(${REQ} req, ${ATT}[] atts, bytes[] sigs, bytes humanSig)`,
   `function evaluate(${REQ} req, ${ATT}[] atts, bytes[] sigs, bytes humanSig) view returns (uint8 rule, uint8 detail)`,
   'function paid(bytes32) view returns (bool)',
+  'function humanApprover() view returns (address)',
   'function POLICY_VERSION() view returns (string)',
   'event Released(bytes32 indexed invoiceHash, address indexed payee, uint256 amount, bytes32 receiptHash, bool humanSigned, uint32 destinationDomain)',
   'error RuleFailed(uint8 rule, uint8 detail)',

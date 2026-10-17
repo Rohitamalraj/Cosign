@@ -18,6 +18,7 @@ export interface ServerStatus {
   database: 'postgres' | 'pglite';
   models: { reader: boolean; matcher: boolean; sentinel: boolean };
   crossChainMint: boolean;
+  gas: { executor: number; screener: number; auditor: number } | null;
   note: string | null;
 }
 

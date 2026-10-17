@@ -69,6 +69,8 @@ export interface Status {
   database: 'postgres' | 'pglite';
   models: { reader: boolean; matcher: boolean; sentinel: boolean };
   crossChainMint: boolean;
+  /** Gas (USDC) in the operating wallets. Below about 0.3 the Executor cannot send a payment. */
+  gas: { executor: number; screener: number; auditor: number } | null;
   note: string | null;
 }
 
@@ -77,11 +79,14 @@ export async function getStatus(): Promise<Status> {
   const live = await getLive(db);
   const llm = llmConfigFromEnv();
   const base = { database: db.kind === 'pg' ? ('postgres' as const) : ('pglite' as const), models: { reader: !!llm.reader, matcher: !!llm.matcher, sentinel: !!llm.sentinel } };
-  if (!live) return { ...base, mode: 'preview', network: 'none', chainId: null, policy: null, humanApprover: null, perTxLimitUsdc: null, policyUsdc: null, crossChainMint: false, note: 'Preview: the agents run, but no chain connection is configured, so nothing can be signed by registered agents or released.' };
+  if (!live) return { ...base, mode: 'preview', network: 'none', chainId: null, policy: null, humanApprover: null, perTxLimitUsdc: null, policyUsdc: null, crossChainMint: false, gas: null, note: 'Preview: the agents run, but no chain connection is configured, so nothing can be signed by registered agents or released.' };
   const facts = await live.chainFacts(0n);
+  const [ex, sc, au] = await Promise.all([live.gasOf('EXECUTOR'), live.gasOf('SCREENER'), live.gasOf('AUDITOR')]);
+  const low = ex.usdc < 0.3 ? `The Executor wallet (${ex.address}) is low on gas (${ex.usdc.toFixed(2)} USDC): payments will fail until it is topped up.` : null;
   return {
     ...base, mode: 'live', network: 'Arc testnet (test USDC)', chainId: live.chainId, policy: live.deployment.policy, humanApprover: await live.humanApprover(),
-    perTxLimitUsdc: num(facts.perTxLimitMicro), policyUsdc: num(facts.balanceMicro), crossChainMint: !!live.settler, note: null,
+    perTxLimitUsdc: num(facts.perTxLimitMicro), policyUsdc: num(facts.balanceMicro), crossChainMint: !!live.settler,
+    gas: { executor: ex.usdc, screener: sc.usdc, auditor: au.usdc }, note: low,
   };
 }
 
@@ -155,6 +160,7 @@ function toView(r: ProcessResult, text: string, ledger: Ledger, answer: { rule: 
     uid, id: p.invoiceNumber ?? 'UNPARSED', vendor: p.vendorName ?? 'Unknown vendor', amount: p.totalMicro === null ? 0 : num(p.totalMicro),
     category: vendor ? vendor.category[0].toUpperCase() + vendor.category.slice(1) : 'Uncategorized',
     received: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), due: fmtDate(p.due),
+    limit,
     chain: chainLabel(domain), payee: p.payee ? short(p.payee) : '—', payeeFull: p.payee ?? undefined,
     hash: r.invoiceHash ? short(r.invoiceHash) : '—', hashFull: r.invoiceHash ?? undefined,
     caseId: DEMO_CASES.find((c) => readDemoInvoice(c.file) === text)?.id,
@@ -240,7 +246,9 @@ export async function receiptFor(uid: string, actor: Session | null) {
   if (!row.hash) throw httpError(404, 'no receipt for this invoice');
   const receipt = await new PgStore(db).getReceipt(row.hash);
   if (!receipt) throw httpError(404, 'this invoice has no receipt yet (it has not been paid)');
-  const replay = live ? await replayReceipt(receipt, { registry: live.registry, approver: await live.humanApprover() }) : await replayReceipt(receipt);
+  const replay = live
+    ? await replayReceipt(receipt, { registry: live.registry, approver: await live.humanApprover(), approverAt: async (b) => (await live.policy.humanApprover({ blockTag: b })) as string })
+    : await replayReceipt(receipt);
   const settlement = await new (await import('./repo')).PgSettlementStore(db).get(row.hash);
   return { receipt, replay, settlement };
 }
@@ -291,7 +299,17 @@ export async function releaseInvoice(uid: string, actor: Session | null, approva
     humanSig = packHumanSig(approval.expiry, approval.signature);
   }
 
-  const out = await live.executor.release({ ...(row.package as object), humanSig });
+  let out;
+  try { out = await live.executor.release({ ...(row.package as object), humanSig }); }
+  catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // Say what actually went wrong instead of a vague internal error. Nothing was paid: the contract is only ever called once the rules pass.
+    if (/INSUFFICIENT_NATIVE_TOKEN|insufficient funds/i.test(msg)) {
+      const g = await live.gasOf('EXECUTOR').catch(() => null);
+      throw httpError(503, `The payment was not sent: the Executor wallet is out of gas${g ? ` (${g.usdc.toFixed(2)} USDC at ${g.address})` : ''}. Send it some test USDC and press the button again.`);
+    }
+    throw httpError(502, `The payment could not be sent: ${msg.slice(0, 200)}`);
+  }
   if (out.status === 'HELD') {
     const reason = out.rule === 8 ? 'The agents\' signatures have expired. Run the invoice through the agents again.' : out.reason;
     await updateInvoiceStatus(db, uid, out.rule === 6 ? 'escalated' : 'held', { headline: reason });

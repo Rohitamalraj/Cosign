@@ -108,7 +108,7 @@ export async function verifyRun(provider: Provider, dep: Deployment, cases: Reco
 
   const reps = [];
   for (const r of receipts) {
-    const res = await replayReceipt(r, { registry, approver: dep.approver });
+    const res = await replayReceipt(r, { registry, approver: dep.approver, approverAt: async (b) => (await policy.humanApprover({ blockTag: b })) as string });
     reps.push({ invoiceHash: r.invoiceHash, ok: res.ok, checks: res.checks });
   }
 

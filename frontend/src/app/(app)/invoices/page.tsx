@@ -91,7 +91,7 @@ export default function Invoices() {
         sub="Paste an invoice. Five agents read, check and sign it through Circle-held keys, and the real contract says what it would do. Pay it from here and the Executor sends real test USDC on Arc."
       />
 
-      {!session && (
+      {!loading && !session && (
         <Card className="mb-6">
           <h2 className="h2">Sign in to run invoices</h2>
           <p className="mt-1 text-[13px] text-ink/65">Sign in with your wallet. It signs a message only: no transaction, no cost. Your invoices are private to you and to this workspace’s operators.</p>
@@ -242,7 +242,7 @@ export default function Invoices() {
                 )}
                 <button type="button" className="btn-ghost" disabled={busy} onClick={() => void guarded(async () => { setSelected((await rerun(inv.uid)).uid); })}>Run the agents again</button>
                 <p className="text-[13px] text-ink/60">
-                  {!canRelease ? 'Only operators and admins can pay.' : !live ? 'No chain connected: this server cannot pay.' : needsApproval ? 'Over the limit: the approver’s wallet must sign. MetaMask will ask.' : inv.status === 'ready' ? 'Sends real test USDC through the Executor. The contract re-checks all eight rules first.' : 'Held. Fix the cause (for example add the vendor, or wait out the cooling-off) and run the agents again.'}
+                  {!canRelease ? 'Only operators and admins can pay.' : !status ? 'Checking the server…' : !live ? 'No chain connected: this server cannot pay.' : needsApproval ? 'Over the limit: the approver’s wallet must sign. MetaMask will ask.' : inv.status === 'ready' ? 'Sends real test USDC through the Executor. The contract re-checks all eight rules first.' : 'Held. Fix the cause (for example add the vendor, or wait out the cooling-off) and run the agents again.'}
                 </p>
               </div>
             )}

@@ -137,7 +137,9 @@ export class Executor {
 
     let sent: SubmitResult;
     try {
-      sent = await this.submitter.submit(pkg, hash);
+      // One key per attempt: a backend that de-duplicates by key (Circle) would otherwise hand back the earlier FAILED transaction
+      // forever. A second attempt cannot double-pay, because the contract's paid set rejects a repeat.
+      sent = await this.submitter.submit(pkg, attempts > 1 ? `${hash}:${attempts}` : hash);
     } catch (e) {
       const rf = this.decodeRuleFailed(e);
       if (rf) return this.hold(hash, rf.rule, rf.detail, rec, pkg);

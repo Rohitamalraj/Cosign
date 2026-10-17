@@ -41,7 +41,7 @@ export function Nav() {
               <Link
                 key={l.href}
                 href={l.href}
-                className={`px-3 py-1.5 transition-colors hover:text-violet ${active ? 'bg-ink text-opal hover:text-opal' : ''}`}
+                className={`whitespace-nowrap px-2.5 py-1.5 transition-colors hover:text-violet ${active ? 'bg-ink text-opal hover:text-opal' : ''}`}
               >
                 {l.label}
                 {l.href === '/escalations' && open > 0 && (
@@ -54,7 +54,7 @@ export function Nav() {
 
         <div className="flex items-center gap-3">
           {status && (
-            <span title={status.note ?? `${status.network}. Payments are real transactions of test USDC.`} className={`hidden items-center gap-1.5 border px-2 py-1 font-mono text-[11px] uppercase tracking-[0.08em] sm:inline-flex ${status.mode === 'live' ? 'border-jade/70 bg-jade/15 text-[#2c6b57]' : 'border-citrine/60 bg-sand/30'}`}>
+            <span title={status.note ?? `${status.network}. Payments are real transactions of test USDC.`} className={`hidden items-center gap-1.5 whitespace-nowrap border px-2 py-1 font-mono text-[11px] uppercase tracking-[0.08em] xl:inline-flex ${status.mode === 'live' ? 'border-jade/70 bg-jade/15 text-[#2c6b57]' : 'border-citrine/60 bg-sand/30'}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${status.mode === 'live' ? 'bg-jade' : 'bg-gold'}`} /> {status.mode === 'live' ? 'Live · Arc testnet' : 'Preview · no chain'}
             </span>
           )}

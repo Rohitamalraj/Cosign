@@ -42,6 +42,8 @@ export interface Invoice {
   uid: string;
   id: string;
   caseId?: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
+  /** The per-payment limit the contract enforced when this invoice was checked, in USDC. */
+  limit?: number;
   /** Chain the payment settles on ("Arc", or e.g. "Base Sepolia" via CCTP). */
   chain?: string;
   payeeFull?: string;

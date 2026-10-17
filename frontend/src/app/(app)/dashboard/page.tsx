@@ -83,6 +83,7 @@ export default function Overview() {
             <p className="eyebrow">Policy wallet balance</p>
             <p className="mt-3 font-display text-[44px] font-extrabold leading-none tracking-h1 text-violet">{status?.policyUsdc !== null && status?.policyUsdc !== undefined ? usd(status.policyUsdc) : '—'}</p>
             <p className="mt-3 text-[14px] text-ink/60">USDC the contract can pay out, read from Arc now. Limit per payment: {status?.perTxLimitUsdc ?? '—'} USDC.</p>
+            {status?.gas && <p className={`mt-2 font-mono text-[12px] ${status.gas.executor < 0.3 ? 'text-[#8e2e2a]' : 'text-ink/55'}`}>Executor gas: {status.gas.executor.toFixed(2)} USDC{status.gas.executor < 0.3 ? ' · too low to send payments' : ''}</p>}
           </Card>
         </div>
       </section>

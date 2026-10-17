@@ -82,7 +82,7 @@ export interface ReplayCheck { name: string; ok: boolean; detail: string }
  */
 export async function replayReceipt(
   receipt: Receipt,
-  opts: { registry?: Contract; approver?: string } = {},
+  opts: { registry?: Contract; approver?: string; approverAt?: (blockNumber: number) => Promise<string> } = {},
 ): Promise<{ ok: boolean; checks: ReplayCheck[] }> {
   const checks: ReplayCheck[] = [];
   const add = (name: string, ok: boolean, detail: string) => checks.push({ name, ok, detail });
@@ -112,14 +112,17 @@ export async function replayReceipt(
 
   if (receipt.humanSigned) {
     if (!receipt.humanSig || receipt.humanSig.length !== 2 + 146) add('human_signature', false, 'receipt claims a human signature but has none');
-    else if (opts.approver) {
+    else if (opts.approver || opts.approverAt) {
+      // The approver can change after a payment. Check against whoever was the approver when THIS payment was released.
+      let approver = opts.approver ?? '';
+      if (opts.approverAt) { try { approver = await opts.approverAt(receipt.blockNumber); } catch { /* history unavailable: fall back to the current approver */ } }
       const expiry = BigInt('0x' + receipt.humanSig.slice(2, 18));
       let who = '';
       try {
         who = verifyTypedData(domain, HUMAN_APPROVAL_TYPES,
           { invoiceHash: receipt.invoiceHash, payee: receipt.payee, amount: BigInt(receipt.amount), destinationDomain: receipt.destinationDomain, expiry }, '0x' + receipt.humanSig.slice(18));
       } catch { /* bad sig */ }
-      add('human_signature', who.toLowerCase() === opts.approver.toLowerCase(), `approval signed by ${who || 'nobody valid'}`);
+      add('human_signature', who.toLowerCase() === approver.toLowerCase(), `approval signed by ${who || 'nobody valid'}; approver at block ${receipt.blockNumber} was ${approver}`);
     } else add('human_signature', true, 'a human signature is present (approver address not checked)');
   }
 

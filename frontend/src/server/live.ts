@@ -56,6 +56,8 @@ export interface Live {
   settler: CctpSettler | null;
   chainFacts(reserveMicro: bigint): Promise<ChainFacts>;
   humanApprover(): Promise<string>;
+  /** Gas (USDC) held by one of the operating wallets. A wallet that runs dry cannot send, so this is shown on the dashboard. */
+  gasOf(role: 'EXECUTOR' | 'SCREENER' | 'AUDITOR'): Promise<{ address: string; usdc: number }>;
   /** Call a contract as one of the app's operating wallets. Each wallet can only do what the contract allows its role. */
   call(role: 'SCREENER' | 'AUDITOR', args: { contract: string; signature: string; params: unknown[]; key: string }): Promise<{ txHash: string }>;
   circleReady: true;
@@ -129,6 +131,7 @@ async function build(db: Db): Promise<Live | null> {
       return { balanceMicro: BigInt(balance), perTxLimitMicro: BigInt(limit), reserveMicro };
     },
     humanApprover: async () => (await policy.humanApprover()) as string,
+    gasOf: async (role) => ({ address: wallets[role].address, usdc: Number(await provider.getBalance(wallets[role].address)) / 1e18 }),
     call: (role, a) => circleCall(client, { walletId: wallets[role].id, contractAddress: a.contract, signature: a.signature, params: a.params, idempotencyKey: a.key }),
   };
 }

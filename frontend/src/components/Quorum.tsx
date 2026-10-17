@@ -63,10 +63,12 @@ export function Quorum({ inv, reveal = 99, showRules = true }: { inv: Invoice; r
         <Card className="lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="h2">Policy contract</h2>
-            <span className="eyebrow">Preview · 8 rules</span>
+            <span className="eyebrow">{inv.status === 'released' ? 'Paid · 8 rules' : 'Asked of the contract · 8 rules'}</span>
           </div>
           <p className="-mt-2 mb-4 text-[12px] text-ink/55">
-            Predicted from the agents' output. The contract on Arc is the real gate and is not connected yet.
+            {inv.status === 'released'
+              ? 'The contract released this payment, so all eight rules passed.'
+              : 'The real contract on Arc was asked (a free read) when this invoice was run. It reports the first rule that fails, so rules after it are not checked.'}
           </p>
           <ul className="space-y-3">
             {RULES.map((r, i) => {
@@ -81,7 +83,7 @@ export function Quorum({ inv, reveal = 99, showRules = true }: { inv: Invoice; r
                     </p>
                     {r.n === 6 && (
                       <p className="font-mono text-[11px] text-cement">
-                        {usd(inv.amount)} vs limit {usd(PER_TX_LIMIT)} USDC{inv.humanSig ? ` · signed ${inv.humanSig}` : ''}
+                        {usd(inv.amount)} vs limit {usd(inv.limit ?? PER_TX_LIMIT)} USDC{inv.humanSig ? ` · signed ${inv.humanSig}` : ''}
                       </p>
                     )}
                   </div>

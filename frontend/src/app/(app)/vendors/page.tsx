@@ -40,6 +40,7 @@ export default function Vendors() {
     } catch (e) { setErr(e instanceof Error ? e.message : 'could not load vendors'); }
   }
   useEffect(() => { if (canSee) void load(); }, [canSee]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setErr(null); }, [session?.address]); // a new sign-in clears an old error
 
   async function add() {
     setBusy(true);

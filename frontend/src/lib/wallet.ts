@@ -54,6 +54,12 @@ async function post<T>(url: string, body: unknown): Promise<T> {
 
 /** Sign in with the wallet. Returns the session the server opened. */
 export async function signInWithWallet(): Promise<{ address: string; role: 'admin' | 'operator' | 'guest' }> {
+  // A site only sees the accounts the user has connected to it, so switching accounts in MetaMask is not enough. Ask for
+  // permissions afresh so MetaMask shows its account picker and the user chooses which account to sign in with.
+  try { await provider().request({ method: 'wallet_requestPermissions', params: [{ eth_accounts: {} }] }); } catch (e) {
+    if ((e as { code?: number }).code === 4001) throw new Error('You closed the wallet without choosing an account.');
+    /* a wallet without this method falls back to eth_requestAccounts below */
+  }
   const address = await connectWallet();
   const { message } = await post<{ message: string }>('/api/auth/challenge', { address });
   const signature = (await provider().request({ method: 'personal_sign', params: [message, address] })) as string;
