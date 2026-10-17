@@ -12,7 +12,9 @@ export function parseMicro(input: string): bigint | null {
 
 export function fmtMicro(micro: bigint): string {
   const whole = micro / 1_000_000n;
-  const frac = (micro % 1_000_000n).toString().padStart(6, '0').slice(0, 2);
+  // Exact, not truncated: keep at least two decimals and drop only trailing zeros, so 0.125 stays 0.125. A model shown
+  // "0.12" will rightly say that 10 x 0.12 is not 1.25.
+  const frac = (micro % 1_000_000n).toString().padStart(6, '0').replace(/0+$/, '').padEnd(2, '0');
   return `${whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${frac}`;
 }
 

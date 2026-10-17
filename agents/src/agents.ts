@@ -125,7 +125,7 @@ export async function runReader(text: string, llm: LLM | null): Promise<{ parsed
 
   if (llm && !trace) {
     const out = await ask(llm,
-      `You extract fields from invoices. ${DATA_ONLY_RULE} Return {"invoiceNumber","vendorName","payee","total"} using null for anything absent. "total" is a plain decimal string.`,
+      `You extract fields from invoices. ${DATA_ONLY_RULE} Return {"invoiceNumber","vendorName","payee","total"} using null for anything absent. "vendorName" is the company that issued the invoice. "payee" is the 0x wallet address the invoice asks to be paid to, copied exactly (not a company name). "total" is a plain decimal string.`,
       untrusted('invoice', text), readerSchema);
     trace = out.trace;
     if (!out.ok) checks.push(llmUnavailable(out.trace));

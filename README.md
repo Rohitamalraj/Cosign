@@ -215,12 +215,12 @@ What the Executor does and does not do:
 
 **Optional: add free language models.** Without a model, every agent runs deterministic checks and the Matcher and Sentinel cap their confidence at 0.85. A model adds a second opinion. It can only add doubt (PASS to ESCALATE or FAIL), never remove it, and any model error becomes ESCALATE, never PASS. Matcher and Sentinel must use different models, and startup fails if they match.
 
-The `READER_LLM` model has one extra job: when the parser cannot read an invoice's layout, it **proposes values for the missing fields**. The model is never the source of truth: a field the parser already found is never overridden, and every proposed wallet, amount, invoice number, vendor and email must appear **verbatim** in the document, and dates must be real and appear in it, otherwise the value is rejected and the invoice is held. If the document names several wallets (for example an injected one), the choice is flagged as ambiguous and held. This is tested with scripted model replies only; it has not been run against a live free model yet, because that needs your API key.
+The `READER_LLM` model has one extra job: when the parser cannot read an invoice's layout, it **proposes values for the missing fields**. The model is never the source of truth: a field the parser already found is never overridden, and every proposed wallet, amount, invoice number, vendor and email must appear **verbatim** in the document, and dates must be real and appear in it, otherwise the value is rejected and the invoice is held. If the document names several wallets (for example an injected one), the choice is flagged as ambiguous and held. This is tested with scripted model replies in the unit tests, and has also been run against live free models (`agents/scripts/models-check.ts`, Groq `openai/gpt-oss-120b` for the Reader and Matcher, Groq `qwen/qwen3.8-27b` for the Sentinel). That live run is what showed that a prompt calling the field `payee` made a model return the company name instead of the wallet, and that showing a model a rate rounded to two decimals (0.12 instead of 0.125) makes it flag a correct invoice. Both were fixed; with the fixes, a clean invoice passes every model, a near-duplicate and a prompt-injection invoice are held, and an invoice in an unknown layout is read by the model and verified against the document text.
 
 ```bash
 # any OpenAI-compatible endpoint works; a few free options:
-export MATCHER_LLM=groq:llama-3.3-70b-versatile      # needs GROQ_API_KEY (free tier)
-export SENTINEL_LLM=gemini:gemini-2.0-flash          # needs GEMINI_API_KEY (free tier)
+export MATCHER_LLM=groq:openai/gpt-oss-120b          # needs GROQ_API_KEY (free tier)
+export SENTINEL_LLM=groq:qwen/qwen3.8-27b            # a different model family on the same key (or use gemini: / openrouter:)
 # or fully local, no key and no data leaves your machine:
 export SENTINEL_LLM=ollama:qwen2.5:7b                # needs Ollama running
 export READER_LLM=...                                # optional cross-check of the parser

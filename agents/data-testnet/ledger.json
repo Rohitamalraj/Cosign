@@ -62,7 +62,7 @@
     {
       "ref": "SOW-22",
       "vendorId": "northwind",
-      "description": "Design retainer, 125.00 per hour",
+      "description": "Design retainer, 0.125 per hour",
       "lines": [
         {
           "match": "design hours",
@@ -74,7 +74,7 @@
     {
       "ref": "PLAN-LUMEN",
       "vendorId": "lumen",
-      "description": "Monthly hosting plan, 480.00",
+      "description": "Monthly hosting plan, 0.48",
       "lines": [
         {
           "match": "hosting",
@@ -86,7 +86,7 @@
     {
       "ref": "PO-318",
       "vendorId": "orbit",
-      "description": "Flyer print run, 31.00 each",
+      "description": "Flyer print run, 0.031 each",
       "lines": [
         {
           "match": "flyers",
@@ -111,7 +111,7 @@
     {
       "ref": "SOW-31",
       "vendorId": "meridian",
-      "description": "Illustration batches, 150.00 each",
+      "description": "Illustration batches, 0.15 each",
       "lines": [
         {
           "match": "illustration",

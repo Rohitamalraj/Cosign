@@ -26,7 +26,7 @@ const proposalSchema = z.object({
   payee: z.string().nullable(),
   total: z.string().nullable(),
   agreementRef: z.string().nullable(),
-  lineItems: z.array(z.object({ description: z.string().max(200), qty: z.number().positive().max(1e6), rate: z.string(), amount: z.string() })).max(50),
+  lineItems: z.array(z.object({ description: z.string().max(200), qty: z.coerce.number().positive().max(1e6), rate: z.coerce.string(), amount: z.coerce.string() })).max(50),
 });
 
 const ADDR = /0x[a-fA-F0-9]{40}\b/g;
@@ -70,7 +70,7 @@ export async function gapFill(text: string, parsed: ParsedInvoice, llm: LLM): Pr
     const raw = await llm.complete({
       system:
         `You read invoices and propose values for fields that are missing. ${DATA_ONLY_RULE} ` +
-        'Return {"invoiceNumber","vendorName","senderEmail","issued","due","currency","payee","total","agreementRef","lineItems":[{"description","qty","rate","amount"}]}. ' +
+        'Return {"invoiceNumber","vendorName","senderEmail","issued","due","currency","payee","total","agreementRef","lineItems":[{"description","qty","rate","amount"}]}. "payee" is the 0x wallet address the invoice asks to be paid to, copied exactly (never a company name); "qty" is a number; "rate", "amount" and "total" are plain decimal strings. ' +
         'Use null for anything you cannot read directly from the document. Copy the invoice number, vendor, email and wallet address EXACTLY as written. ' +
         'Dates are YYYY-MM-DD. "total", "rate" and "amount" are plain decimal strings copied from the document (no currency symbols). Never invent or compute values.',
       user: untrusted('invoice', text),
