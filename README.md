@@ -2,10 +2,6 @@
 
 > **An accounts-payable system where five AI agents each sign their own verdict on an invoice, and a smart contract, not a model, decides whether the money moves.**
 
-**Live app:** https://cosign-7jh5.onrender.com (Arc testnet, test USDC only) · **Chain:** Arc testnet (5042002) · **Tests:** all suites run in CI
-
-Built for the **Tameion Agents Hackathon** (hosted by Canteen with Circle and Arc), RFB 2 (AP/AR automation), with parts of RFB 3 (agent reputation) and RFB 4 (limits enforced in a contract, not a prompt).
-
 ---
 
 ## The Problem in One Sentence
