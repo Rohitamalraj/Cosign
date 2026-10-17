@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { IntakePanel } from '@/components/IntakePanel';
 import { OutcomePanel } from '@/components/OutcomePanel';
 import { Quorum } from '@/components/Quorum';
 import { Card, PageHeader, StatusPill, usd } from '@/components/ui';
 import type { Status } from '@/lib/data';
-import { useStore } from '@/lib/store';
+import { api, useStore } from '@/lib/store';
 
 const filters: { key: Status | 'all'; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -18,7 +19,7 @@ const filters: { key: Status | 'all'; label: string }[] = [
 interface Sample { id: string; title: string; text: string }
 
 export default function Invoices() {
-  const { invoices, loading, error, session, status, canRelease, submit, submitPdf, rerun, release, signIn } = useStore();
+  const { invoices, loading, error, session, status, canRelease, submit, submitPdf, readScan, rerun, release, signIn } = useStore();
   const [filter, setFilter] = useState<Status | 'all'>('all');
   const [selected, setSelected] = useState<string | null>(null);
   const [samples, setSamples] = useState<Sample[]>([]);
@@ -44,8 +45,37 @@ export default function Invoices() {
     finally { setBusy(false); }
   }
 
-  const upload = (file: File | undefined) => file && guarded(async () => { setSelected((await submitPdf(file)).uid); });
-  const run = () => guarded(async () => { setSelected((await submit(text)).uid); setText(''); });
+  const [ocrNote, setOcrNote] = useState<string | null>(null);
+  const [intakeId, setIntakeId] = useState<number | null>(null);
+  const [inboxKey, setInboxKey] = useState(0);
+
+  // A text PDF goes straight to the agents. A scan (an image, or a PDF with no text layer) is read by OCR first, and the text
+  // is put in the box for you to check and correct, because OCR can misread a digit or a wallet character.
+  const upload = (file: File | undefined) => file && guarded(async () => {
+    setOcrNote(null);
+    const isImage = file.type === 'image/png' || file.type === 'image/jpeg';
+    if (!isImage) {
+      try { setSelected((await submitPdf(file)).uid); return; }
+      catch (e) { if (!(e as { needsOcr?: boolean }).needsOcr) throw e; }
+    }
+    setNote('Reading the scan with OCR…');
+    const text = await readScan(file);
+    setText(text);
+    setOcrNote('Read by OCR. Check every amount, date and wallet character below, fix any mistakes, then press Run the five agents.');
+    setNote(null);
+  });
+  const run = () => guarded(async () => {
+    const inv = await submit(text);
+    setSelected(inv.uid);
+    setText('');
+    setOcrNote(null);
+    if (intakeId !== null) {
+      // The text came from the email inbox: a person has now checked it and run it, so close the inbox item.
+      await api(`/api/intake/${intakeId}`, { method: 'POST', body: JSON.stringify({ action: 'processed', invoiceUid: inv.uid }) }).catch(() => undefined);
+      setIntakeId(null);
+      setInboxKey((k) => k + 1);
+    }
+  });
   const pay = (uid: string, needsApproval: boolean) => guarded(async () => {
     const out = await release(uid, needsApproval);
     setNote(`Paid on-chain: ${out.txUrl ?? out.tx ?? ''}`);
@@ -77,7 +107,7 @@ export default function Invoices() {
             <span className="font-mono text-[12px] text-ink/55">{session.role === 'guest' ? 'guest: you can check invoices, but only operators can pay' : `${session.role}: you can pay invoices`}</span>
           </div>
           <p className="mt-1 text-[13px] text-ink/60">
-            Paste invoice text or upload a text-based PDF (up to 5 MB, 10 pages). Scanned images are rejected because OCR is not built.
+            Paste invoice text, upload a PDF, or upload a photo or scan (PNG, JPEG). Text PDFs go straight to the agents; scans are read by OCR and shown to you to check first.
             {live ? ' The vendor must already be in the Vendors ledger, or the Verifier will hold it.' : ' Preview mode: no chain is connected, so nothing can be paid.'}
           </p>
           {samples.length > 0 && (
@@ -106,13 +136,22 @@ export default function Invoices() {
               {busy ? 'Working…' : 'Run the five agents'}
             </button>
             <label className={`btn-ghost cursor-pointer ${busy ? 'pointer-events-none opacity-40' : ''}`}>
-              Upload a PDF
-              <input type="file" accept="application/pdf,.pdf" className="sr-only" onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ''; }} />
+              Upload a PDF or scan
+              <input type="file" accept="application/pdf,.pdf,image/png,image/jpeg" className="sr-only" onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ''; }} />
             </label>
             {formError && <p role="alert" className="text-[13px] text-[#8e2e2a]">{formError}</p>}
             {note && <p className="text-[13px] text-[#2c6b57]">{note}</p>}
+            {ocrNote && <p className="basis-full border-l-2 border-citrine bg-sand/30 p-3 text-[13px] text-ink/80">{ocrNote}</p>}
           </div>
         </Card>
+      )}
+
+      {session && canRelease && (
+        <IntakePanel
+          refreshKey={inboxKey}
+          onLoad={(t, id) => { setText(t); setIntakeId(id); setOcrNote('From the email inbox. Check every amount, date and wallet character, fix any mistakes, then press Run the five agents.'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          onOpen={(uid) => setSelected(uid)}
+        />
       )}
 
       {error && <p role="alert" className="mb-4 border border-[#b4443f]/60 bg-[#b4443f]/10 p-3 text-[#8e2e2a]">Could not load invoices: {error}</p>}
@@ -163,7 +202,7 @@ export default function Invoices() {
           <Card className="mb-4">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
               <div className="min-w-0">
-                <p className="eyebrow">{inv.id} · {inv.vendor}</p>
+                <p className="eyebrow">{inv.id} · {inv.vendor}{inv.intake ? ` · by email from ${inv.intake.from}` : ''}</p>
                 <h2 className="h3 mt-2">{inv.headline}</h2>
                 {inv.flags && inv.flags.length > 0 && (
                   <p className="mt-4 max-w-2xl border-l-2 border-[#b4443f] bg-[#b4443f]/5 p-3 font-mono text-[12px] text-ink/80">

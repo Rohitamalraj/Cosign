@@ -32,6 +32,8 @@ interface Store {
   submit: (text: string) => Promise<Invoice>;
   /** Upload a text-based PDF (max 5 MB). Scans are rejected with a readable message. */
   submitPdf: (file: File) => Promise<Invoice>;
+  /** Read a scan (PNG, JPEG or an image-only PDF) with OCR. Returns the text for a person to check; it does not run the agents. */
+  readScan: (file: File) => Promise<string>;
   rerun: (uid: string) => Promise<Invoice>;
   /** Pay the invoice on-chain. Above the limit, this asks the approver wallet to sign first. */
   release: (uid: string, needsApproval: boolean) => Promise<Invoice>;
@@ -87,9 +89,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     submitPdf: async (file) => {
       const res = await fetch('/api/invoices/pdf', { method: 'POST', headers: { 'content-type': 'application/pdf' }, body: file });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((body as { error?: string }).error ?? `upload failed (${res.status})`);
+      if (!res.ok) {
+        const err = new Error((body as { error?: string }).error ?? `upload failed (${res.status})`) as Error & { needsOcr?: boolean };
+        err.needsOcr = !!(body as { needsOcr?: boolean }).needsOcr;
+        throw err;
+      }
       await refresh();
       return (body as { invoice: Invoice }).invoice;
+    },
+    readScan: async (file) => {
+      const res = await fetch('/api/invoices/ocr', { method: 'POST', headers: { 'content-type': file.type || 'application/octet-stream' }, body: file });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((body as { error?: string }).error ?? `could not read the file (${res.status})`);
+      return (body as { text: string }).text;
     },
     rerun: async (uid) => {
       const { invoice } = await api<{ invoice: Invoice }>(`/api/invoices/${encodeURIComponent(uid)}/rerun`, { method: 'POST', body: '{}' });

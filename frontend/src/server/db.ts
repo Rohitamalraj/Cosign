@@ -170,6 +170,26 @@ const MIGRATIONS: { id: number; sql: string }[] = [
     alter table invoices add column history jsonb;
     `,
   },
+  {
+    id: 3,
+    sql: `
+    create table intake_items (
+      id bigserial primary key,
+      channel text not null,
+      message_id text,
+      from_addr text not null,
+      subject text not null default '',
+      text text not null,
+      ocr boolean not null default false,
+      status text not null check (status in ('new','processed','dismissed','failed')),
+      invoice_uid text,
+      error text,
+      created_at timestamptz not null default now()
+    );
+    create unique index intake_message on intake_items(channel, message_id) where message_id is not null;
+    create index intake_status on intake_items(status, created_at desc);
+    `,
+  },
 ];
 
 export async function migrate(db: Db): Promise<void> {

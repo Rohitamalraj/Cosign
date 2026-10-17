@@ -28,3 +28,5 @@ services:
         sync: false
       - key: COSIGN_ADMIN_ADDRESSES
         sync: false
+      - key: COSIGN_INBOUND_TOKEN   # optional: turns on email intake (docs/EMAIL-INTAKE.md)
+        sync: false

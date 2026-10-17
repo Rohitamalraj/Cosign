@@ -274,3 +274,44 @@ export class PgSettlementStore implements SettlementStore {
     await this.db.query('insert into settlements(invoice_hash, data) values ($1,$2::jsonb) on conflict (invoice_hash) do update set data = excluded.data', [key(s.invoiceHash), JSON.stringify(s)]);
   }
 }
+
+// ---- Intake (invoices that arrive by email) ----
+
+export interface IntakeItem {
+  id: number;
+  channel: string;
+  messageId: string | null;
+  fromAddr: string;
+  subject: string;
+  text: string;
+  ocr: boolean;
+  status: 'new' | 'processed' | 'dismissed' | 'failed';
+  invoiceUid: string | null;
+  error: string | null;
+  createdAt: string;
+}
+
+const toIntake = (r: Record<string, unknown>): IntakeItem => ({
+  id: Number(r.id), channel: String(r.channel), messageId: r.message_id ? String(r.message_id) : null, fromAddr: String(r.from_addr), subject: String(r.subject),
+  text: String(r.text), ocr: !!r.ocr, status: r.status as IntakeItem['status'], invoiceUid: r.invoice_uid ? String(r.invoice_uid) : null,
+  error: r.error ? String(r.error) : null, createdAt: new Date(String(r.created_at)).toISOString(),
+});
+
+/** Returns null when this message id was already received (a provider retry), so nothing is processed twice. */
+export async function addIntake(db: Db, i: Pick<IntakeItem, 'channel' | 'messageId' | 'fromAddr' | 'subject' | 'text' | 'ocr' | 'status'> & { invoiceUid?: string | null; error?: string | null }): Promise<IntakeItem | null> {
+  const rows = await db.query(
+    `insert into intake_items(channel, message_id, from_addr, subject, text, ocr, status, invoice_uid, error) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+     on conflict do nothing returning *`,
+    [i.channel, i.messageId, i.fromAddr, i.subject, i.text, i.ocr, i.status, i.invoiceUid ?? null, i.error ?? null],
+  );
+  return rows.length ? toIntake(rows[0]) : null;
+}
+
+export async function listIntake(db: Db, limit = 100): Promise<IntakeItem[]> {
+  return (await db.query('select * from intake_items order by created_at desc limit $1', [limit])).map(toIntake);
+}
+
+export async function setIntakeStatus(db: Db, id: number, status: IntakeItem['status'], invoiceUid?: string | null): Promise<boolean> {
+  const rows = await db.query('update intake_items set status = $2, invoice_uid = coalesce($3, invoice_uid) where id = $1 returning id', [id, status, invoiceUid ?? null]);
+  return rows.length > 0;
+}

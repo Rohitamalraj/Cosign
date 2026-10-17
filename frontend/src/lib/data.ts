@@ -53,6 +53,8 @@ export interface Invoice {
   flags?: string[];
   /** The wallet that submitted this invoice. */
   createdBy?: string;
+  /** Set when the invoice arrived by email rather than being typed in. */
+  intake?: { channel: 'email'; from: string; subject: string };
   /** Explorer link for the payment transaction, once paid. */
   txUrl?: string;
   /** Cross-chain payments: the mint on the destination chain. */

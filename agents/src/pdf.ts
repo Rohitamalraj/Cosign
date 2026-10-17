@@ -1,6 +1,6 @@
 /**
- * PDF -> text, for text-based PDFs only. Scanned images need OCR, which is not built: such a file yields no text
- * and is rejected with a clear message rather than guessed at.
+ * PDF -> text, for text-based PDFs only. A scanned (image-only) PDF yields no text here and throws PdfNoTextError;
+ * the caller then runs OCR (ocr.ts) and shows the result to a person to check, rather than guessing.
  *
  * A PDF is untrusted input, so: size and page caps, a wall-clock timeout, a magic-byte check, pdf.js eval disabled,
  * and the output is plain text that goes through the same deterministic parser as a pasted invoice.
@@ -16,6 +16,8 @@ export interface PdfLimits {
 export const DEFAULT_PDF_LIMITS: PdfLimits = { maxBytes: 5 * 1024 * 1024, maxPages: 10, maxChars: 50_000, timeoutMs: 20_000 };
 
 export class PdfError extends Error {}
+/** The PDF opened fine but has no text layer: it is a scan, and needs OCR (see ocr.ts). */
+export class PdfNoTextError extends PdfError {}
 
 interface TextItem { str: string; transform: number[]; width: number }
 
@@ -79,7 +81,7 @@ export async function pdfToText(data: Uint8Array, limits: Partial<PdfLimits> = {
         lines.push(...itemsToLines(content.items.filter((i): i is typeof i & TextItem => 'str' in i) as TextItem[]));
       }
       const text = lines.join('\n');
-      if (text.replace(/\s/g, '').length < 20) throw new PdfError('No text found. This looks like a scanned image, and OCR is not built yet. Paste the invoice text instead.');
+      if (text.replace(/\s/g, '').length < 20) throw new PdfNoTextError('No text found. This looks like a scanned image, so it needs OCR.');
       return text.slice(0, lim.maxChars);
     } finally {
       await doc.destroy().catch(() => undefined);

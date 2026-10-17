@@ -47,6 +47,22 @@ function parseLineItems(text: string): LineItem[] {
     if (!description || !Number.isFinite(qty) || qty <= 0 || rate === null || amount === null) continue; // header or junk row
     items.push({ description, qty, rateMicro: rate, amountMicro: amount });
   }
+  if (items.length) return items;
+
+  // Text that came from OCR or a copied PDF often loses the "|" column separators. Accept "description qty rate amount",
+  // with the three numbers at the end of the line. The totals and rate checks downstream still apply to what it finds.
+  const SPACED = /^(.*?[A-Za-z].*?)\s+(\d+(?:\.\d+)?)\s+([\d,]+(?:\.\d{1,6})?)\s+([\d,]+(?:\.\d{1,6})?)$/;
+  for (const raw of text.split(/\r?\n/)) {
+    const m = raw.trim().match(SPACED);
+    if (!m) continue;
+    const [, description, qtyS, rateS, amountS] = m;
+    if (/^(description|qty|rate|amount|total|subtotal)\b/i.test(description)) continue; // header or totals row
+    const qty = Number(qtyS);
+    const rate = parseMicro(rateS);
+    const amount = parseMicro(amountS);
+    if (!Number.isFinite(qty) || qty <= 0 || rate === null || amount === null) continue;
+    items.push({ description: description.trim(), qty, rateMicro: rate, amountMicro: amount });
+  }
   return items;
 }
 

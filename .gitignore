@@ -10,3 +10,5 @@ coverage/
 
 *.tsbuildinfo
 !.env.example
+
+*.traineddata

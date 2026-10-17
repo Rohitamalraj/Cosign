@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PdfError } from '../../../../../../agents/src/pdf';
+import { PdfError, PdfNoTextError } from '../../../../../../agents/src/pdf';
 import { submitPdf } from '@/server/engine';
 import { fail, rateLimited, tooMany } from '@/server/guard';
 import { assertSameOrigin, requireSession, sessionFrom } from '@/server/http';
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
-/** POST the raw bytes of a text-based PDF (Content-Type: application/pdf). Scans are rejected: OCR is not built. */
+/** POST the raw bytes of a text-based PDF (Content-Type: application/pdf). A scanned PDF answers 422 with needsOcr, and the client then uses /api/invoices/ocr. */
 export async function POST(req: Request) {
   if (rateLimited(req, 10)) return tooMany();
   try {
@@ -24,6 +24,7 @@ export async function POST(req: Request) {
     if (bytes.length > MAX_BYTES) return NextResponse.json({ error: 'The PDF is larger than 5 MB.' }, { status: 413 });
     return NextResponse.json({ invoice: await submitPdf(bytes, session) });
   } catch (e) {
+    if (e instanceof PdfNoTextError) return NextResponse.json({ error: e.message, needsOcr: true }, { status: 422 });
     if (e instanceof PdfError) {
       if (e.cause) console.error('pdf error cause:', e.cause instanceof Error ? `${e.cause.name}: ${e.cause.message}` : e.cause);
       return NextResponse.json({ error: e.message }, { status: 422 });

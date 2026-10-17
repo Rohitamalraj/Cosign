@@ -8,17 +8,19 @@ import {
   type Ledger, type ProcessResult, type RoleName,
 } from '../../../agents/src';
 import { findVendorByDomain, findVendorByName, lineSignature } from '../../../agents/src/ledger';
-import { pdfToText } from '../../../agents/src/pdf';
+import { PdfNoTextError, pdfToText } from '../../../agents/src/pdf';
+import { looksLikeImage, looksLikePdf, ocrFile } from '../../../agents/src/ocr';
 import { explainRule } from '../../../executor/src/explain';
 import { HUMAN_APPROVAL_TYPES } from '../../../executor/src/abi';
 import { domainFor, replayReceipt } from '../../../executor/src/receipt';
 import { toJson } from '../../../executor/src/types';
 import { OUTCOME_KINDS, OutcomeError, effectsFor, type Effect, type OutcomeKind, type Verdict } from './auditor';
 import { can, type Session } from './auth';
+import { InboundError, composeInvoiceText, type InboundMessage } from './email';
 import { openDb, type Db } from './db';
 import { EXPLORER, getLive, type Live } from './live';
 import {
-  PgStore, addOutcome, createVendor, getInvoice, getSetting, listInvoices, listOutcomes, listVendors, loadLedger, recordPayment, saveInvoice,
+  PgStore, addIntake, addOutcome, createVendor, listIntake, setIntakeStatus, getInvoice, getSetting, listInvoices, listOutcomes, listVendors, loadLedger, recordPayment, saveInvoice,
   setVendorOnchain, updateInvoiceStatus, updateOutcomeEffects, upsertAgreement, type InvoiceRow, type VendorRow,
 } from './repo';
 
@@ -173,13 +175,13 @@ function toView(r: ProcessResult, text: string, ledger: Ledger, answer: { rule: 
  * Re-submitting an unpaid invoice replaces its row; re-submitting one that was already paid is a NEW row, so the Sentinel's
  * duplicate catch is visible.
  */
-export async function submitInvoice(text: string, actor: Session | null, opts: { persist?: boolean } = {}): Promise<Invoice> {
+export async function submitInvoice(text: string, actor: Session | null, opts: { persist?: boolean; meta?: Partial<Invoice> } = {}): Promise<Invoice> {
   const { db, live, ledger } = await runtime();
   const signers = live ? live.signers : loadAgentKeys();
   const r = await processInvoice(text, ledger, pipelineCfg(live), signers);
   const answer = await contractAnswer(live, r);
   const owner = actor?.address.toLowerCase() ?? null;
-  let view = toView(r, text, ledger, answer, owner);
+  let view = { ...toView(r, text, ledger, answer, owner), ...(opts.meta ?? {}) };
 
   if (opts.persist === false || !owner) return view;
 
@@ -514,4 +516,65 @@ export async function getStats(): Promise<Stats> {
     recentPayments: paidRows.slice(0, 6).filter((r) => r.view.tx).map((r) => ({ tx: r.view.tx!, amountUsdc: Number(r.amount_micro) / 1e6, chain: r.view.chain ?? 'Arc', at: new Date(r.updated_at).toISOString() })),
     recentOutcomes: outcomes.slice(0, 5).map((o) => ({ kind: o.kind, at: o.createdAt, effects: (o.effects as { role: string; scoreDelta: number; slashMicro: string; tx?: string }[]).map((e) => ({ role: e.role, scoreDelta: e.scoreDelta, slashMicro: e.slashMicro, tx: e.tx })) })),
   };
+}
+
+// ---- Email intake ----
+
+/** The identity under which emailed invoices are stored: visible to operators and admins, never able to pay anything. */
+const EMAIL_ACTOR: Session = { address: 'email-intake', role: 'operator', expiresAt: '' };
+
+export type IngestResult =
+  | { status: 'duplicate' }
+  | { status: 'processed'; invoiceUid: string; decision: string | undefined }
+  | { status: 'needs_review'; intakeId: number; reason: string }
+  | { status: 'failed'; intakeId: number | null; error: string };
+
+/**
+ * Turn an inbound email into an invoice. Text PDFs and body text go straight through the agents. Anything that needed OCR
+ * (an image, a scanned PDF) is NOT run automatically: it waits in the inbox for a person to check the text first.
+ * Nothing here pays: an operator still has to open the invoice and press Pay.
+ */
+export async function ingestEmail(msg: InboundMessage): Promise<IngestResult> {
+  const db = await getDb();
+  const from = msg.fromEmail;
+  const texts: string[] = [];
+  let ocrUsed = false;
+  try {
+    for (const a of msg.attachments) {
+      if (looksLikePdf(a.bytes)) {
+        try { texts.push(await pdfToText(a.bytes)); }
+        catch (e) { if (!(e instanceof PdfNoTextError)) throw e; texts.push(await ocrFile(a.bytes)); ocrUsed = true; }
+      } else if (looksLikeImage(a.bytes)) { texts.push(await ocrFile(a.bytes)); ocrUsed = true; }
+      // Other attachment types (spreadsheets, signatures, logos) are ignored: only invoices can be read.
+    }
+    if (!texts.length && msg.text.trim().length < 20) throw new InboundError('the email has no invoice text and no readable attachment');
+    const text = composeInvoiceText(msg, texts);
+
+    if (ocrUsed) {
+      const item = await addIntake(db, { channel: 'email', messageId: msg.messageId, fromAddr: from, subject: msg.subject, text, ocr: true, status: 'new' });
+      return item ? { status: 'needs_review', intakeId: item.id, reason: 'an attachment was read by OCR, so a person must check the text before the agents run' } : { status: 'duplicate' };
+    }
+    // Record first, so a provider retry of the same message cannot create a second invoice.
+    const item = await addIntake(db, { channel: 'email', messageId: msg.messageId, fromAddr: from, subject: msg.subject, text, ocr: false, status: 'new' });
+    if (!item) return { status: 'duplicate' };
+    const inv = await submitInvoice(text, EMAIL_ACTOR, { meta: { intake: { channel: 'email', from, subject: msg.subject } } });
+    await setIntakeStatus(db, item.id, 'processed', inv.uid);
+    return { status: 'processed', invoiceUid: inv.uid, decision: inv.decision };
+  } catch (e) {
+    const error = e instanceof Error ? e.message.slice(0, 200) : 'could not process the email';
+    const item = await addIntake(db, { channel: 'email', messageId: msg.messageId ? `${msg.messageId}#failed` : null, fromAddr: from, subject: msg.subject, text: msg.text.slice(0, 20_000), ocr: false, status: 'failed', error }).catch(() => null);
+    return { status: 'failed', intakeId: item?.id ?? null, error };
+  }
+}
+
+export async function listIntakeItems(actor: Session | null) {
+  if (!can.seeAllInvoices(actor)) throw httpError(403, 'only operators and admins can see the inbox');
+  return listIntake(await getDb());
+}
+
+/** Dismiss an inbox item, or mark one processed after a person ran its (checked) text through the agents. */
+export async function updateIntakeItem(id: number, action: 'dismiss' | 'processed', invoiceUid: string | null, actor: Session | null): Promise<void> {
+  if (!can.seeAllInvoices(actor)) throw httpError(403, 'only operators and admins can change the inbox');
+  const ok = await setIntakeStatus(await getDb(), id, action === 'dismiss' ? 'dismissed' : 'processed', invoiceUid);
+  if (!ok) throw httpError(404, 'unknown inbox item');
 }

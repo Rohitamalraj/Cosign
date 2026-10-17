@@ -11,6 +11,7 @@ The app is a Next.js server that imports `agents/`, the Executor library and `de
 | `COSIGN_CIRCLE_WALLETS` | JSON of the wallet ids (the five agents, EXECUTOR, SCREENER, AUDITOR) | `cd executor && node --env-file=.env --import tsx scripts/print-deploy-env.ts` |
 | `COSIGN_RELAYER_PRIVATE_KEY` | Throwaway key that pays destination-chain gas for CCTP mints. It holds no USDC | Same script |
 | `COSIGN_ADMIN_ADDRESSES` | Your MetaMask address. It signs in as admin | You |
+| Optional: `COSIGN_INBOUND_TOKEN` | Shared secret for the email webhook (16+ random characters). Leave unset to keep email intake off | You (see `docs/EMAIL-INTAKE.md`) |
 | Optional: `MATCHER_LLM`, `SENTINEL_LLM`, `READER_LLM`, `GROQ_API_KEY`, `GEMINI_API_KEY` | Free models | See the README |
 
 Everything above is a secret except the admin address. Put it only in the host's environment settings. Never paste it into chat, an issue or a commit; the CI job fails a commit that contains key-shaped values.

@@ -8,6 +8,7 @@ export * from './llm';
 export * from './keys';
 export * from './eip712';
 export * from './chains';
+export * from './ocr';
 export { ledgerFromJson, recordPaid, type Ledger } from './ledger';
 export { fmtMicro, parseMicro } from './money';
 

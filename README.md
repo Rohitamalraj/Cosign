@@ -26,7 +26,7 @@ You do not need to trust this README. Everything about the Arc run is re-checked
 | Contracts on Arc testnet, real USDC token, gas in USDC | **Test money only, at 1/1000 scale** (faucet limit) |
 | Agents sign through Circle-held keys; contract verifies with `ecrecover` | The seven example invoices are **written by us**, including the attacks, and the reference run on `/onchain` is a one-off we ran |
 | Held cases moved nothing; paid cases are in the paid set | The Auditor's scores before the app existed came from a **scripted** run (one seeded miss). Scores now move only when a person reports an outcome |
-| 226 automated tests in CI, incl. agents -> contract end to end and randomized invariant tests | **No real users yet** (see `docs/TRACTION.md`) |
+| 269 automated tests in CI, incl. agents -> contract end to end and randomized invariant tests | **No real users yet** (see `docs/TRACTION.md`) |
 | CCTP burn on Arc and mint on Base Sepolia, both re-checked from chain state | Base Sepolia is a testnet; one cross-chain payment of 0.75 USDC, scripted by us |
 | USYC treasury contract, tested | **USYC is not live**: Circle must entitle the contract first (ticket text in `docs/USYC-SUPPORT-TICKET.md`) |
 | Replayable receipts, re-verified in the app when you open one | The USDC is **test money** with no value |
@@ -105,11 +105,13 @@ A read-only `evaluate()` returns the failing rule without spending anything, so 
 | **Vendor ledger** | **Done.** Admins add vendors in the app; the wallet is allowlisted on-chain by a Circle screener wallet and waits out a cooling-off. Each vendor's real on-chain status is shown |
 | **Auditor** | **Done and tested live.** An operator reports what really happened on an invoice (once). The Auditor Circle wallet writes the score changes and bond slashes to the registry. Rules in `frontend/src/server/auditor.ts` |
 | Frontend | Every page reads the live system. The dashboard shows counts from the database and the chain, never invented numbers; traction shows consenting partners only (zero today) |
-| PDF input | **Text-based PDFs work** (upload in the inbox; 5 MB and 10 page caps, hardened pdf.js). **Scanned PDFs need OCR, which is not built** and are rejected with a clear message. Invoices in a layout the parser does not know are held for a human unless a free model is configured to propose the missing fields (see below) |
+| PDF input | **Text-based PDFs work** (upload in the inbox; 5 MB and 10 page caps, hardened pdf.js). Scanned PDFs and images go through OCR (next rows). Invoices in a layout the parser does not know are held for a human unless a free model is configured to propose the missing fields (see below) |
 | Deployment to Arc testnet | **Done.** Registry, policy v0.2 and treasury deployed against the real USDC. All seven demo cases ran on-chain on v0.2 |
 | Circle Wallets | **Used.** The five agents' signing keys and the Executor wallet are Circle developer-controlled wallets on ARC-TESTNET |
 | Real users and traction | **None yet.** The dashboard shows 0 until a consenting partner is added to `frontend/data/traction.json`. Playbook: `docs/TRACTION.md` |
-| Not built | OCR for scanned PDFs; email intake; reconciliation against an external system of record (the Auditor learns from a person's report, not from a bank or ERP feed); an external sanctions feed (the block list is a setting plus the contract's challenge function) |
+| **OCR for scans and photos** | **Done.** PNG, JPEG and image-only PDFs are read by OCR (tesseract.js, pages rendered with pdf.js). The text is shown to a person to check and correct before the agents run, because OCR misreads characters (our own test turned `@` into `®`). 9 tests, plus a live check of the upload route |
+| **Email intake** | **Done.** A webhook (Postmark inbound JSON, or a plain JSON shape) turns an email into an invoice for the agents. Secret-protected, deduplicated by message id, sender domain checked by the Verifier, and **never pays anything**. A scan attached to an email waits in an inbox for a person. 18 live checks (`frontend/scripts/e2e-email.ts`). See `docs/EMAIL-INTAKE.md` |
+| Not built | Reading an IMAP mailbox directly (use a provider's inbound webhook); OCR in languages other than English; reconciliation against an external system of record (the Auditor learns from a person's report, not from a bank or ERP feed); an external sanctions feed (the block list is a setting plus the contract's challenge function) |
 
 There is no mock data in the app. The reference run on `/onchain` and the seven example invoices are inputs and records we created, and they are labelled as ours.
 
@@ -181,7 +183,7 @@ npx hardhat test
 ```bash
 cd agents
 npm install
-npm test            # 79 tests
+npm test            # 88 tests
 npm run demo        # runs the demo cases through all five agents and prints each verdict
 ```
 
@@ -234,7 +236,7 @@ Model names change often, so check each provider's current free models. **Privac
 cd frontend
 npm install
 npm run dev        # http://localhost:3000
-npm test           # 25 tests: database, wallet sign-in, Auditor rules
+npm test           # 34 tests: database, wallet sign-in, Auditor rules, email intake
 ```
 
 Routes: `/` landing, `/docs`, `/pricing`, `/dashboard`, `/invoices`, `/escalations`, `/receipts`, `/vendors`, `/agents`, `/lab`, `/demo`, `/onchain`, and the MCP endpoint `/mcp`.

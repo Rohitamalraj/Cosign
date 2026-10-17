@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { openDb, migrate, type Db } from '../src/server/db';
-import { PgSettlementStore, PgStore, addOutcome, createVendor, getSetting, listHistory, listOutcomes, listVendors, loadLedger, recordPayment, saveInvoice, getInvoice, setSetting, upsertAgreement, listInvoices, updateInvoiceStatus } from '../src/server/repo';
+import { PgSettlementStore, PgStore, addIntake, listIntake, setIntakeStatus, addOutcome, createVendor, getSetting, listHistory, listOutcomes, listVendors, loadLedger, recordPayment, saveInvoice, getInvoice, setSetting, upsertAgreement, listInvoices, updateInvoiceStatus } from '../src/server/repo';
 import { processInvoice } from '../../agents/src/pipeline';
 import { loadAgentKeys } from '../../agents/src/keys';
 
@@ -15,7 +15,7 @@ describe('database', () => {
   it('migrations are idempotent', async () => {
     await migrate(db);
     await migrate(db);
-    assert.equal((await db.query('select count(*)::int as n from schema_migrations'))[0].n, 2);
+    assert.equal((await db.query('select count(*)::int as n from schema_migrations'))[0].n, 3);
   });
 
   it('a failed transaction rolls everything back', async () => {
@@ -116,5 +116,25 @@ describe('the Executor stores on Postgres', () => {
     const st = new PgSettlementStore(db);
     await st.put({ invoiceHash: H, destinationDomain: 6, destinationChain: 'Base Sepolia', payee: WALLET, amount: '750000', burnTx: '0x1', state: 'MINTED', updatedAt: '' });
     assert.equal((await st.get(H))?.state, 'MINTED');
+  });
+});
+
+describe('email inbox', () => {
+  it('stores a message once: a provider retry of the same message id is ignored', async () => {
+    const m = { channel: 'email', messageId: 'm-1', fromAddr: 'a@b.example', subject: 's', text: 'INVOICE', ocr: false, status: 'new' as const };
+    assert.ok(await addIntake(db, m));
+    assert.equal(await addIntake(db, m), null);
+    assert.ok(await addIntake(db, { ...m, messageId: 'm-2' }));
+    assert.equal((await listIntake(db)).length, 2);
+  });
+
+  it('messages without an id are all kept, and an item can be marked processed or dismissed', async () => {
+    const base = { channel: 'email', messageId: null, fromAddr: 'a@b.example', subject: '', text: 'x', ocr: true, status: 'new' as const };
+    const one = await addIntake(db, base);
+    await addIntake(db, base);
+    assert.equal((await listIntake(db)).length, 2);
+    assert.equal(await setIntakeStatus(db, one!.id, 'processed', '0xabc'), true);
+    assert.equal((await listIntake(db)).find((i) => i.id === one!.id)?.invoiceUid, '0xabc');
+    assert.equal(await setIntakeStatus(db, 9999, 'dismissed'), false);
   });
 });
