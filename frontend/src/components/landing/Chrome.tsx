@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
 
 const ticker = [
   ['📊', 'Case study: how a duplicate invoice was blocked by the contract, not a prompt'],
@@ -57,68 +56,6 @@ export function Wordmark({ className = '' }: { className?: string }) {
   );
 }
 
-const leftLinks = [
-  { href: '/#product', label: 'Product' },
-  { href: '/docs', label: 'Docs' },
-  { href: '/pricing', label: 'Pricing' },
-];
-const rightLinks = [
-  { href: '/#teams', label: 'Who it’s for' },
-  { href: '/#stack', label: 'Stack' },
-  { href: '/#faq', label: 'FAQ' },
-];
-
-export function LandingHeader() {
-  const [open, setOpen] = useState(false);
-  const all = [...leftLinks, ...rightLinks, { href: '/demo', label: 'Demo' }];
-  return (
-    <header className="relative z-20">
-      <div className="mx-auto flex max-w-[1384px] items-center justify-between px-5 py-5 lg:justify-center lg:gap-10 lg:py-6">
-        <nav className="hidden items-center gap-8 lg:flex" aria-label="Primary">
-          {leftLinks.map((l) => <Link key={l.href} href={l.href} className="hover:text-violet">{l.label}</Link>)}
-        </nav>
-        <Link href="/" className="lg:mx-6" onClick={() => setOpen(false)}><Wordmark className="!text-[26px] lg:!text-[30px]" /></Link>
-        <nav className="hidden items-center gap-8 lg:flex" aria-label="Secondary">
-          {rightLinks.map((l) => <Link key={l.href} href={l.href} className="hover:text-violet">{l.label}</Link>)}
-          <Link href="/dashboard" className="text-ink/70 hover:text-violet">Log in</Link>
-          <HandleButton href="/dashboard">Get started</HandleButton>
-        </nav>
-        <button
-          type="button"
-          className="grid h-10 w-10 place-items-center border border-ink/25 bg-white/70 lg:hidden"
-          aria-expanded={open}
-          aria-controls="mobile-menu"
-          aria-label={open ? 'Close menu' : 'Open menu'}
-          onClick={() => setOpen((o) => !o)}
-        >
-          <span className="relative block h-3 w-5">
-            <i className={`absolute left-0 top-0 h-px w-5 bg-ink transition-transform ${open ? 'translate-y-1.5 rotate-45' : ''}`} />
-            <i className={`absolute left-0 top-1.5 h-px w-5 bg-ink transition-opacity ${open ? 'opacity-0' : ''}`} />
-            <i className={`absolute left-0 top-3 h-px w-5 bg-ink transition-transform ${open ? '-translate-y-1.5 -rotate-45' : ''}`} />
-          </span>
-        </button>
-      </div>
-
-      {open && (
-        <nav id="mobile-menu" className="border-y border-ink/15 bg-opal px-5 pb-6 pt-2 lg:hidden" aria-label="Mobile">
-          <ul className="divide-y divide-ink/10">
-            {all.map((l) => (
-              <li key={l.href}>
-                <Link href={l.href} onClick={() => setOpen(false)} className="block py-3.5 text-[17px]">{l.label}</Link>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <Link href="/dashboard" onClick={() => setOpen(false)} className="btn-ghost">Log in</Link>
-            <Link href="/dashboard" onClick={() => setOpen(false)} className="btn-solid">Get started</Link>
-          </div>
-        </nav>
-      )}
-    </header>
-  );
-}
-
-/** Four-spoke burst beside the hero headline; spokes flicker in turn. */
 export function Sparkle({ className = '' }: { className?: string }) {
   const spokes = ['M4 4l8 8', 'M24 2v12', 'M44 4l-8 8', 'M46 24H34'];
   return (
