@@ -1,0 +1,11 @@
+{
+  "network": "arc-testnet",
+  "treasury": "0x981142C4AC97fa7E345f5c369f3158824Ce06632",
+  "ranAt": "2026-10-17T19:40:33.429Z",
+  "invest": {
+    "usdc": "2",
+    "tx": "0x46a62afe75335482db7e5cb23edbf30115594bf59a89950241ffdc041c0c82fd"
+  },
+  "redeem": null,
+  "note": "redeem simulation reverted"
+}
