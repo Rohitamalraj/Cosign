@@ -1,4 +1,4 @@
-# Cosign: The First Multi-Agent Treasury Where No Single AI Can Move Your Money
+# Cosign: The First Multi-Agent Accounts Payable Where No Single AI Can Move Your Money
 
 > **An accounts-payable system where five AI agents each sign their own verdict on an invoice, and a smart contract, not a model, decides whether the money moves.**
 
