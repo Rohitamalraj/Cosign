@@ -12,3 +12,6 @@ coverage/
 !.env.example
 
 *.traineddata
+
+# Internal product requirements (kept locally, not published)
+Cosign — Product Requirements Document.*
